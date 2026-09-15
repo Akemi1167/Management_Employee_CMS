@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Search } from 'lucide-react';
 import { PageContainer } from '@/components/layout/page-container';
@@ -22,11 +22,16 @@ const PAGE_SIZE = 20;
 export function EmployeesListPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const canImport = useAuthStore((s) => s.hasPermission(PERMISSION.EMPLOYEE_WRITE));
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(searchParams.get('query') ?? '');
   const [departmentCode, setDepartmentCode] = useState('');
   const [employmentStatus, setEmploymentStatus] = useState('');
-  const [applied, setApplied] = useState({ query: '', departmentCode: '', employmentStatus: '' });
+  const [applied, setApplied] = useState({
+    query: searchParams.get('query') ?? '',
+    departmentCode: '',
+    employmentStatus: '',
+  });
   const [page, setPage] = useState(1);
 
   const { data, isLoading } = useQuery({
@@ -61,6 +66,19 @@ export function EmployeesListPage() {
       key: 'wallet',
       header: t('employees.wallet'),
       render: (row) => row.wallet.addressMasked || '—',
+    },
+    {
+      key: 'actions',
+      header: t('common.actions'),
+      render: (row) => (
+        <Link
+          to={`/employees/${row.id}#portal-account`}
+          onClick={(e) => e.stopPropagation()}
+          className="text-[#4ade80] hover:underline"
+        >
+          {t('employees.setPortalPassword')}
+        </Link>
+      ),
     },
   ];
 

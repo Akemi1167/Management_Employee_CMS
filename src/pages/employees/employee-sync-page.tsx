@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { DataTable, type Column } from '@/components/shared/data-table';
+import { EmployeeLink } from '@/components/shared/employee-link';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { CreateButton } from '@/components/shared/create-button';
 import { Button } from '@/components/ui/button';
@@ -135,7 +136,7 @@ export function EmployeeSyncDetailPage() {
       },
     },
     { key: 'changeType', header: t('common.dataType'), render: (row) => t(`syncChange.${row.changeType}`) },
-    { key: 'employeeCode', header: t('employees.code') },
+    { key: 'employeeCode', header: t('employees.code'), render: (row) => <EmployeeLink id={row.employeeId} code={row.employeeCode} /> },
     {
       key: 'fields',
       header: t('employeeSync.changes'),

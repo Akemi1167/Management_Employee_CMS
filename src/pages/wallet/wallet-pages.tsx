@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { DataTable, type Column } from '@/components/shared/data-table';
+import { EmployeeLink } from '@/components/shared/employee-link';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { StepUpDialog } from '@/components/shared/step-up-dialog';
 import { Button } from '@/components/ui/button';
@@ -50,8 +51,9 @@ export function WalletRequestsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const canConfigure = useAuthStore((s) => s.hasPermission(PERMISSION.WALLET_LOCK_CONFIGURE));
+  const [searchParams] = useSearchParams();
   const [status, setStatus] = useState('');
-  const [employeeCode, setEmployeeCode] = useState('');
+  const [employeeCode, setEmployeeCode] = useState(searchParams.get('employeeCode') ?? '');
   const [page, setPage] = useState(1);
   const [period, setPeriod] = useState('');
   const [lockFrom, setLockFrom] = useState('');
@@ -94,7 +96,7 @@ export function WalletRequestsPage() {
 
   const columns: Column<WalletChangeRequest>[] = [
     { key: 'code', header: t('complaints.code') },
-    { key: 'employeeCode', header: t('employees.code') },
+    { key: 'employeeCode', header: t('employees.code'), render: (row) => <EmployeeLink id={row.employeeId} code={row.employeeCode} /> },
     { key: 'addressMasked', header: t('employees.wallet') },
     { key: 'platform', header: t('employees.walletPlatform') },
     { key: 'network', header: t('employees.walletNetwork') },
@@ -249,7 +251,7 @@ export function WalletRequestDetailPage() {
       {row ? (
         <div className={`${cardClass} space-y-3 p-6 text-sm`}>
           <p>
-            {t('employees.code')}: {row.employeeCode}
+            {t('employees.code')}: <EmployeeLink id={row.employeeId} code={row.employeeCode} />
           </p>
           <p>
             {t('employees.wallet')}: {row.addressMasked}

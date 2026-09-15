@@ -56,8 +56,12 @@
     "mustChangeDescription": "Tài khoản đang ở trạng thái bắt buộc đổi mật khẩu trước khi tiếp tục.",
     "currentPassword": "Mật khẩu hiện tại",
     "newPassword": "Mật khẩu mới",
+    "confirmPassword": "Nhập lại mật khẩu mới",
+    "passwordMismatch": "Hai lần nhập mật khẩu không khớp",
+    "passwordRule": "Từ 12 đến 128 ký tự, gồm chữ và số, không chứa tên đăng nhập.",
+    "mustChangePasswordNotice": "Bạn cần đổi mật khẩu trước khi sử dụng các chức năng khác.",
     "changePassword": "Đổi mật khẩu",
-    "passwordChanged": "Đã đổi mật khẩu",
+    "passwordChanged": "Đã đổi mật khẩu. Các phiên đăng nhập khác đã bị thu hồi.",
     "stepUpTitle": "Xác thực lại",
     "stepUpDescription": "Thao tác này yêu cầu OTP. Mã đã được gửi tới email của bạn.",
     "stepUpAction": "Xác thực thao tác"
@@ -78,6 +82,7 @@
     "attendance": "Chấm công",
     "penalties": "Phạt",
     "payroll": "Bảng lương",
+    "periodOverview": "Tổng quan kỳ",
     "approvals": "Chờ duyệt",
     "publishing": "Công bố & khóa kỳ",
     "complaints": "Khiếu nại",
@@ -85,11 +90,12 @@
     "vault": "Employee Vault",
     "users": "Tài khoản CMS",
     "audit": "Nhật ký audit",
+    "password": "Đổi mật khẩu",
     "needPermission": "Tài khoản hiện tại chưa có quyền mở mục này"
   },
   "dashboard": {
     "title": "Bảng điều khiển",
-    "description": "Nhập chấm công, phạt và lương theo kỳ; duyệt tách biệt người nhập; công bố trước ngày 03 và ngày 11.",
+    "description": "Nhập chấm công kèm phạt trên cùng một sheet (một phiên ATTENDANCE); nạp lại phạt riêng khi cần; lương là sheet khác. Duyệt tách người nhập; công bố trước ngày 03 và ngày 11.",
     "attendanceDeadline": "Chấm công & phạt: công bố trước ngày 03",
     "payrollDeadline": "Bảng lương: công bố trước ngày 11",
     "imports": "Phiên nhập",
@@ -99,6 +105,7 @@
     "quickImport": "Nhập file mới",
     "quickApprovals": "Duyệt phiên",
     "quickComplaints": "Xử lý khiếu nại",
+    "quickOverview": "Thiếu dữ liệu & xác nhận",
     "apiCatalog": "API CMS đã triển khai",
     "adminHint": "Tài khoản quản trị được xem dữ liệu kỳ, duyệt và công bố, nhưng không tự nhập file (tách nhiệm vụ). Tạo tài khoản vai trò Nhập liệu để upload Excel.",
     "createDataEntry": "Tạo tài khoản nhập liệu",
@@ -196,7 +203,7 @@
   },
   "employees": {
     "title": "Hồ sơ nhân viên",
-    "description": "Danh sách nhân viên đồng bộ từ LARK hoặc nhập roster Excel. Hồ sơ mới ở trạng thái chưa liên kết LARK.",
+    "description": "Danh sách nhân viên đồng bộ từ LARK hoặc nhập roster Excel. Mở hồ sơ để xem chấm công, phạt, lương theo kỳ, khiếu nại và yêu cầu đổi ví.",
     "importTitle": "Nhập roster",
     "importDescription": "File .xlsx hoặc .csv: mã nhân viên và họ tên bắt buộc. Không thay thế đồng bộ LARK.",
     "importHint": "Cột: Mã nhân viên, Họ tên, Bộ phận, Chức vụ, Ngày nhận việc (MM/DD/YY).",
@@ -215,7 +222,34 @@
     "walletPlatform": "Nền tảng ví",
     "walletNetwork": "Mạng ví",
     "detail": "Hồ sơ nhân viên",
-    "searchPlaceholder": "Mã hoặc họ tên"
+    "searchPlaceholder": "Mã hoặc họ tên",
+    "idFilter": "ID nhân viên",
+    "viewComplaints": "Khiếu nại",
+    "viewWallet": "Đổi mã ví",
+    "openList": "Mở danh sách đầy đủ",
+    "noPeriodData": "Chưa có dữ liệu lương / phạt cho nhân viên này.",
+    "portalTitle": "Đổi mật khẩu nhân viên",
+    "portalHint": "Nhập mật khẩu mới cho tài khoản cổng nhân viên. Mặc định nhân viên phải đổi lại khi đăng nhập. Mật khẩu: 12–128 ký tự, có chữ và số, không chứa mã NV.",
+    "portalMissing": "Chưa có tài khoản cổng nhân viên — điền form bên dưới sẽ vừa cấp tài khoản vừa đặt mật khẩu.",
+    "portalReason": "Lý do (tối thiểu 10 ký tự)",
+    "provisionPortal": "Cấp tài khoản (mật khẩu tạm ngẫu nhiên)",
+    "resetPortalPassword": "Tạo mật khẩu tạm ngẫu nhiên",
+    "setPortalPassword": "Đổi mật khẩu",
+    "mustChangeOnLogin": "Bắt buộc nhân viên đổi mật khẩu khi đăng nhập lại",
+    "newPassword": "Mật khẩu mới",
+    "confirmPassword": "Nhập lại mật khẩu mới",
+    "portalPasswordSet": "Đã đổi mật khẩu. Nhân viên dùng mật khẩu này để đăng nhập và sẽ phải đổi lại nếu bạn đã chọn bắt buộc.",
+    "portalPasswordCreated": "Đã cấp tài khoản và đặt mật khẩu. Gửi mật khẩu cho nhân viên — họ phải đổi khi đăng nhập nếu bạn đã chọn bắt buộc.",
+    "portalWriteHint": "Tài khoản của bạn cần quyền sửa hồ sơ nhân viên (employee:write) để đổi mật khẩu.",
+    "portalProvisioned": "Đã cấp tài khoản. Gửi mật khẩu tạm cho nhân viên — họ phải đổi khi đăng nhập.",
+    "portalPasswordReset": "Đã đặt lại mật khẩu. Nhân viên phải đổi mật khẩu khi đăng nhập lại.",
+    "mustChangePassword": "Bắt buộc đổi MK",
+    "lastLoginAt": "Đăng nhập gần nhất",
+    "passwordChangedAt": "Đổi mật khẩu lúc"
+  },
+  "passwordChange": {
+    "REQUIRED": "Phải đổi khi đăng nhập",
+    "DONE": "Đã tự đổi"
   },
   "employeeSync": {
     "title": "Đồng bộ nhân viên từ LARK",
@@ -238,11 +272,20 @@
   },
   "imports": {
     "title": "Nhập file theo mẫu",
-    "description": "Tải file Excel theo mẫu nhân sự. Chấm công và phạt dùng cùng sheet nhưng là hai phiên riêng.",
+    "description": "Luồng chính: chọn Chấm công + phạt. API đọc sheet «chấm công + phạt», ghi ngày công và tự tạo bản phạt chưa công bố. Nạp lại phạt riêng chỉ khi cần sửa số tiền.",
     "create": "Tải file mới",
     "file": "Tệp Excel",
     "downloadTemplate": "Tải mẫu Excel",
-    "fileHint": "Chọn file .xlsx theo mẫu nhân sự. Cùng một file dùng cho chấm công, phạt (sheet chấm công + phạt) và lương (sheet lương).",
+    "fileHint": "Chỉ .xlsx hoặc .csv. Sheet «chấm công + phạt» cho ATTENDANCE (và PENALTY khi nạp lại); sheet «lương» cho PAYROLL.",
+    "typeHint": {
+      "ATTENDANCE": "Mẫu attendance-monthly-v1. Bắt buộc: mã nhân viên, ngày làm thực tế, ngày trong tháng. Cột số tiền phạt tùy chọn — hệ thống tạo staging phạt cùng phiên, một lần duyệt/công bố.",
+      "PENALTY": "Mẫu penalty-monthly-v1, cùng sheet. Chỉ nạp lại số tiền phạt; các cột ngày công chỉ để đối chiếu. Không dùng làm luồng nhập chính.",
+      "PAYROLL": "Mẫu payroll-monthly-v1, sheet «lương»."
+    },
+    "openAttendanceStaging": "Bản nháp chấm công",
+    "openPenaltyStaging": "Bản nháp phạt",
+    "openPayrollStaging": "Bản nháp lương",
+    "totalPenaltyAmount": "Tổng tiền phạt",
     "template": "Mẫu",
     "uploaded": "Đã nhận file",
     "validate": "Kiểm tra",
@@ -250,7 +293,7 @@
     "submit": "Gửi duyệt",
     "submitted": "Đã gửi duyệt",
     "errors": "Lỗi theo dòng",
-    "findings": "Cảnh báo mức phiên",
+    "findings": "Phát hiện mức phiên",
     "totals": "Tổng",
     "validRows": "Hợp lệ",
     "errorRows": "Lỗi",
@@ -262,34 +305,35 @@
     "severity": "Mức",
     "code": "Mã phiên",
     "sessionId": "ID phiên import",
-    "openStaging": "Mở bản nháp của phiên",
+    "openStaging": "Mở bản chưa công bố của phiên",
     "severityError": "Lỗi",
     "severityWarning": "Cảnh báo"
   },
   "attendance": {
     "title": "Chấm công",
-    "description": "Số tổng theo kỳ: ngày công, tăng ca, OFF đặc biệt, nghỉ không lương.",
+    "description": "Tổng theo kỳ từ sheet chấm công + phạt. «Chưa công bố» gồm cả đã duyệt; nhân viên chỉ thấy sau khi công bố.",
     "workingDays": "Ngày trong tháng",
     "actualDays": "Ngày làm thực tế",
     "overtime": "Ngày tăng ca",
     "specialLeave": "OFF đặc biệt",
     "unpaidLeave": "Nghỉ không lương",
     "employedDays": "Ngày đã làm việc",
-    "edit": "Sửa bản nháp",
+    "penaltyAmount": "Số tiền phạt",
+    "edit": "Sửa bản chưa công bố",
     "saved": "Đã lưu. Nếu phiên đang chờ duyệt sẽ bị rút về Đã kiểm tra."
   },
   "penalties": {
     "title": "Phạt",
-    "description": "Tổng tiền phạt theo kỳ. Lý do do OA nhập, không có trong file.",
+    "description": "Tiền phạt theo kỳ, thường sinh kèm phiên chấm công. Đã duyệt vẫn ở «Chưa công bố» cho đến khi công bố kỳ.",
     "amount": "Số tiền",
     "currency": "Đơn vị",
     "reason": "Lý do phạt",
-    "edit": "Sửa bản nháp",
+    "edit": "Sửa bản chưa công bố",
     "saved": "Đã lưu."
   },
   "payroll": {
     "title": "Bảng lương",
-    "description": "Các khoản cấu thành theo file thực tế. Tổng thu nhập và tổng khấu trừ để trống nếu chưa chốt công thức.",
+    "description": "Các khoản cấu thành theo file thực tế. Đã duyệt vẫn ở «Chưa công bố» cho đến khi công bố kỳ. Tổng thu nhập và tổng khấu trừ để trống nếu chưa chốt công thức.",
     "baseSalary": "Lương cơ bản",
     "totalBase": "Tổng lương cơ bản",
     "periodSalary": "Lương của tháng",
@@ -300,27 +344,30 @@
     "gross": "Tổng thu nhập",
     "deduction": "Tổng khấu trừ",
     "components": "Khoản cấu thành",
-    "edit": "Sửa bản nháp",
+    "edit": "Sửa bản chưa công bố",
     "saved": "Đã lưu."
   },
   "source": {
-    "staging": "Nháp",
-    "published": "Đã công bố"
+    "label": "Nguồn",
+    "staging": "Chưa công bố",
+    "published": "Đã công bố",
+    "hint": "Duyệt xong file vẫn nằm ở «Chưa công bố». Nhân viên chỉ thấy sau khi publisher công bố kỳ."
   },
   "approvals": {
     "title": "Phiên chờ duyệt",
-    "description": "Người duyệt phải khác người nhập. Đối chiếu số bản ghi và tổng tiền trước khi duyệt.",
+    "description": "Người duyệt phải khác người nhập. Đối chiếu số bản ghi và tổng tiền phạt (với chấm công/phạt) trước khi duyệt.",
     "approve": "Duyệt",
     "reject": "Từ chối",
     "expectedCount": "Số bản ghi đã đối chiếu",
-    "expectedAmount": "Tổng tiền đã đối chiếu",
+    "expectedAmount": "Tổng tiền phạt đã đối chiếu",
+    "expectedAmountHint": "Với phiên chấm công, đây là tổng cột số tiền phạt, không phải lương.",
     "approved": "Đã duyệt phiên",
     "rejected": "Đã từ chối phiên",
     "rejectReason": "Lý do từ chối (tối thiểu 10 ký tự)"
   },
   "publishing": {
     "title": "Công bố và khóa kỳ",
-    "description": "Chỉ phiên đã duyệt mới được công bố. Khóa kỳ chặn nhận file mới và công bố thêm.",
+    "description": "Chỉ phiên đã duyệt mới được công bố. Công bố chấm công cũng công bố phạt đi kèm. Khóa kỳ chặn nhận file mới và công bố thêm.",
     "publish": "Công bố phiên import",
     "lock": "Khóa kỳ",
     "sessionId": "ID phiên import đã duyệt",
@@ -431,6 +478,36 @@
     "EXPIRED": "Hết hạn",
     "CANCELLED": "Đã hủy"
   },
+  "coverageStatus": {
+    "PRESENT": "Đã có",
+    "MISSING": "Thiếu"
+  },
+  "confirmStatus": {
+    "CONFIRMED": "Đã xác nhận",
+    "PENDING": "Chưa xác nhận",
+    "NOT_PUBLISHED": "Chưa công bố"
+  },
+  "periodOverview": {
+    "title": "Tổng quan kỳ",
+    "description": "Đối chiếu nhân viên đang làm việc trong tháng với chấm công, phạt và lương. Xác nhận chỉ tính trên bản đã công bố đúng phiên bản hiện hành.",
+    "tabs": {
+      "coverage": "Thiếu dữ liệu",
+      "confirmations": "Xác nhận của nhân viên"
+    },
+    "views": {
+      "all": "Tất cả nhân viên",
+      "missing": "Chỉ người còn thiếu",
+      "unconfirmed": "Chỉ chưa xác nhận"
+    },
+    "search": "Mã hoặc họ tên",
+    "coverageHint": "Thiếu = nhân viên có mặt trong kỳ nhưng chưa có dòng chấm công / phạt / lương. Phạt = 0 vẫn phải có dòng (thường sinh kèm file chấm công). «Chưa công bố» là đã nhập nhưng nhân viên chưa thấy.",
+    "confirmHint": "Nhân viên bấm đồng ý trên cổng nhân viên sau khi dữ liệu được công bố. Công bố lại phiên bản mới thì phải xác nhận lại.",
+    "missingShort": "thiếu",
+    "presentCount": "Đã có {{present}} / {{roster}} người trong kỳ",
+    "confirmCount": "{{confirmed}} đã xác nhận / {{published}} đã công bố ({{pending}} chưa)",
+    "filteredCount": "{{count}} dòng · roster {{roster}}",
+    "empty": "Không có nhân viên khớp bộ lọc."
+  },
   "audit": {
     "title": "Nhật ký audit",
     "description": "Nhật ký bất biến. Runtime không được sửa hoặc xóa bản ghi cũ.",
@@ -447,6 +524,6 @@
   },
   "account": {
     "title": "Tài khoản của tôi",
-    "description": "Đổi mật khẩu. Mọi phiên cũ sẽ bị thu hồi."
+    "description": "Đổi mật khẩu. Nhập mật khẩu mới hai lần. Mọi phiên cũ sẽ bị thu hồi."
   }
 }

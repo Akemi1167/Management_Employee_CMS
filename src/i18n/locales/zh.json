@@ -56,8 +56,12 @@
     "mustChangeDescription": "继续使用前必须修改密码。",
     "currentPassword": "当前密码",
     "newPassword": "新密码",
+    "confirmPassword": "再次输入新密码",
+    "passwordMismatch": "两次输入的密码不一致",
+    "passwordRule": "12–128 个字符，须含字母和数字，且不得包含用户名。",
+    "mustChangePasswordNotice": "继续使用其他功能前必须修改密码。",
     "changePassword": "修改密码",
-    "passwordChanged": "密码已修改",
+    "passwordChanged": "密码已修改，其他登录会话已被撤销。",
     "stepUpTitle": "再次验证",
     "stepUpDescription": "此操作需要 OTP。验证码已发送到邮箱。",
     "stepUpAction": "验证操作"
@@ -78,6 +82,7 @@
     "attendance": "考勤",
     "penalties": "罚款",
     "payroll": "工资",
+    "periodOverview": "期间总览",
     "approvals": "待审批",
     "publishing": "发布与锁定",
     "complaints": "投诉",
@@ -85,11 +90,12 @@
     "vault": "Employee Vault",
     "users": "CMS 账号",
     "audit": "审计日志",
+    "password": "修改密码",
     "needPermission": "当前账号没有权限打开此项"
   },
   "dashboard": {
     "title": "控制台",
-    "description": "按月导入考勤、罚款与工资；录入与审批分离；3 日前发布考勤罚款，11 日前发布工资。",
+    "description": "在同一工作表导入考勤并带罚款（一次 ATTENDANCE 批次）；仅在需要时单独重载罚款；工资为另一工作表。录入与审批分离；3 日前发布考勤罚款，11 日前发布工资。",
     "attendanceDeadline": "考勤与罚款：3 日前发布",
     "payrollDeadline": "工资：11 日前发布",
     "imports": "导入批次",
@@ -99,6 +105,7 @@
     "quickImport": "新导入",
     "quickApprovals": "审批批次",
     "quickComplaints": "处理投诉",
+    "quickOverview": "缺漏与确认",
     "apiCatalog": "已实现的 CMS API",
     "adminHint": "系统管理员可查看期间数据、审批与发布，但不能自行上传文件（职责分离）。请创建“录入”账号以上传 Excel。",
     "createDataEntry": "创建录入账号",
@@ -196,7 +203,7 @@
   },
   "employees": {
     "title": "员工档案",
-    "description": "名单来自 LARK 同步或 Excel 花名册。新建档案为未关联 LARK。",
+    "description": "名单来自 LARK 同步或 Excel 花名册。打开档案可查看各期考勤、罚款、工资、投诉与钱包变更。",
     "importTitle": "导入花名册",
     "importDescription": "上传 .xlsx 或 .csv，工号与姓名必填。不能替代 LARK 同步。",
     "importHint": "列：工号、姓名、部门、职位、入职日期 (MM/DD/YY)。",
@@ -215,7 +222,34 @@
     "walletPlatform": "钱包平台",
     "walletNetwork": "钱包网络",
     "detail": "员工档案",
-    "searchPlaceholder": "工号或姓名"
+    "searchPlaceholder": "工号或姓名",
+    "idFilter": "员工 ID",
+    "viewComplaints": "投诉",
+    "viewWallet": "钱包变更",
+    "openList": "打开完整列表",
+    "noPeriodData": "该员工还没有工资或罚款期间数据。",
+    "portalTitle": "修改员工密码",
+    "portalHint": "为员工门户账号设置新密码。默认下次登录必须再改一次。密码：12–128 位，含字母和数字，不得包含工号。",
+    "portalMissing": "还没有门户账号 — 提交下方表单会同时开户并设置密码。",
+    "portalReason": "原因（至少 10 个字符）",
+    "provisionPortal": "开通账号（随机临时密码）",
+    "resetPortalPassword": "生成随机临时密码",
+    "setPortalPassword": "修改密码",
+    "mustChangeOnLogin": "要求员工下次登录时必须修改此密码",
+    "newPassword": "新密码",
+    "confirmPassword": "再次输入新密码",
+    "portalPasswordSet": "密码已更新。员工用此密码登录；若勾选强制改密，登录后必须再改。",
+    "portalPasswordCreated": "已开户并设置密码。请把密码交给员工——若勾选强制改密，登录后必须修改。",
+    "portalWriteHint": "需要 employee:write 权限才能修改员工密码。",
+    "portalProvisioned": "已开通账号。请把临时密码交给员工——登录后必须修改。",
+    "portalPasswordReset": "已重置密码。员工下次登录必须修改密码。",
+    "mustChangePassword": "强制改密",
+    "lastLoginAt": "最近登录",
+    "passwordChangedAt": "改密时间"
+  },
+  "passwordChange": {
+    "REQUIRED": "登录后必须修改",
+    "DONE": "已自行修改"
   },
   "employeeSync": {
     "title": "从 LARK 同步员工",
@@ -238,11 +272,20 @@
   },
   "imports": {
     "title": "按模板导入",
-    "description": "上传人事 Excel 模板。考勤与罚款共用工作表，但是两个独立批次。",
+    "description": "主路径：考勤 + 罚款。API 读取工作表「chấm công + phạt」，写入出勤天数并自动创建罚款草稿。仅在需要替换金额时单独重载罚款。",
     "create": "上传文件",
     "file": "Excel 文件",
     "downloadTemplate": "下载 Excel 模板",
-    "fileHint": "选择人事模板 .xlsx。同一文件用于考勤与罚款（工作表「chấm công + phạt」）以及工资（工作表「lương」）。",
+    "fileHint": "仅 .xlsx 或 .csv。工作表「chấm công + phạt」用于 ATTENDANCE（以及 PENALTY 重载）；工作表「lương」用于 PAYROLL。",
+    "typeHint": {
+      "ATTENDANCE": "模板 attendance-monthly-v1。必填：员工编号、实际出勤、当月天数。罚款金额可选 — API 在同一批次创建罚款草稿，一次审批/发布。",
+      "PENALTY": "模板 penalty-monthly-v1，同一工作表。仅重载罚款金额；出勤列仅作核对。不是主导入路径。",
+      "PAYROLL": "模板 payroll-monthly-v1，工作表「lương」。"
+    },
+    "openAttendanceStaging": "考勤草稿",
+    "openPenaltyStaging": "罚款草稿",
+    "openPayrollStaging": "工资草稿",
+    "totalPenaltyAmount": "罚款总额",
     "template": "模板",
     "uploaded": "已接收文件",
     "validate": "校验",
@@ -250,7 +293,7 @@
     "submit": "提交审批",
     "submitted": "已提交",
     "errors": "行错误",
-    "findings": "批次级警告",
+    "findings": "批次级发现",
     "totals": "合计",
     "validRows": "有效",
     "errorRows": "错误",
@@ -268,19 +311,20 @@
   },
   "attendance": {
     "title": "考勤",
-    "description": "按月合计：出勤天数、加班、特殊假、无薪假。",
+    "description": "来自考勤+罚款工作表的月合计。在此修改罚款金额会同步同批次罚款草稿。",
     "workingDays": "当月天数",
     "actualDays": "实际出勤",
     "overtime": "加班天数",
     "specialLeave": "特殊假",
     "unpaidLeave": "无薪假",
     "employedDays": "在职天数",
+    "penaltyAmount": "罚款金额",
     "edit": "编辑草稿",
     "saved": "已保存。若批次正在待审批，将退回已校验。"
   },
   "penalties": {
     "title": "罚款",
-    "description": "当月罚款总额。原因由 OA 填写，不在文件中。",
+    "description": "当月罚款金额，通常随考勤批次一并生成。原因由 OA 填写，不在文件中。修改金额会同步考勤上的罚款列。",
     "amount": "金额",
     "currency": "币种",
     "reason": "罚款原因",
@@ -304,23 +348,26 @@
     "saved": "已保存。"
   },
   "source": {
-    "staging": "草稿",
-    "published": "已发布"
+    "label": "来源",
+    "staging": "未发布",
+    "published": "已发布",
+    "hint": "审批完成后数据仍在「未发布」。员工只有在发布人发布该期后才能看到。"
   },
   "approvals": {
     "title": "待审批批次",
-    "description": "审批人必须与录入人不同。审批前请核对记录数与总金额。",
+    "description": "审批人必须与录入人不同。审批前请核对记录数与罚款总额（考勤/罚款批次）。",
     "approve": "批准",
     "reject": "拒绝",
     "expectedCount": "已核对记录数",
-    "expectedAmount": "已核对总金额",
+    "expectedAmount": "已核对罚款总额",
+    "expectedAmountHint": "考勤批次中此项为罚款列合计，不是工资。",
     "approved": "已批准",
     "rejected": "已拒绝",
     "rejectReason": "拒绝原因（至少 10 个字符）"
   },
   "publishing": {
     "title": "发布与锁定期间",
-    "description": "仅已审批批次可发布。锁定后禁止新文件与再次发布。",
+    "description": "仅已审批批次可发布。发布考勤也会一并发布随附罚款。锁定后禁止新文件与再次发布。",
     "publish": "发布导入批次",
     "lock": "锁定期间",
     "sessionId": "已审批导入批次 ID",
@@ -431,6 +478,36 @@
     "EXPIRED": "已过期",
     "CANCELLED": "已取消"
   },
+  "coverageStatus": {
+    "PRESENT": "已有",
+    "MISSING": "缺失"
+  },
+  "confirmStatus": {
+    "CONFIRMED": "已确认",
+    "PENDING": "未确认",
+    "NOT_PUBLISHED": "未发布"
+  },
+  "periodOverview": {
+    "title": "期间总览",
+    "description": "对照本月在职员工与考勤、罚款、工资记录。确认只统计当前已发布版本。",
+    "tabs": {
+      "coverage": "数据缺漏",
+      "confirmations": "员工确认"
+    },
+    "views": {
+      "all": "全部员工",
+      "missing": "仅缺漏",
+      "unconfirmed": "仅未确认"
+    },
+    "search": "工号或姓名",
+    "coverageHint": "缺漏表示该员工在本月名册中但没有考勤/罚款/工资行。罚款为 0 仍需要一行（通常随考勤文件生成）。未发布表示已录入但员工还看不到。",
+    "confirmHint": "员工在门户看到已发布数据后点击同意。重新发布新版本后需要再次确认。",
+    "missingShort": "缺",
+    "presentCount": "已有 {{present}} / {{roster}} 人",
+    "confirmCount": "{{confirmed}} 已确认 / {{published}} 已发布（{{pending}} 未确认）",
+    "filteredCount": "{{count}} 行 · 名册 {{roster}}",
+    "empty": "没有符合筛选条件的员工。"
+  },
   "audit": {
     "title": "审计日志",
     "description": "不可变日志。运行时不得修改或删除旧记录。",
@@ -447,6 +524,6 @@
   },
   "account": {
     "title": "我的账号",
-    "description": "修改密码后，其他会话将被撤销。"
+    "description": "修改密码。新密码需输入两次。其他会话将被撤销。"
   }
 }

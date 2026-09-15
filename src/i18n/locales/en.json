@@ -56,8 +56,12 @@
     "mustChangeDescription": "You must change your password before continuing.",
     "currentPassword": "Current password",
     "newPassword": "New password",
+    "confirmPassword": "Repeat new password",
+    "passwordMismatch": "The two passwords do not match",
+    "passwordRule": "12–128 characters, include a letter and a digit, and do not contain your username.",
+    "mustChangePasswordNotice": "You must change your password before using other features.",
     "changePassword": "Change password",
-    "passwordChanged": "Password changed",
+    "passwordChanged": "Password changed. All other sessions were revoked.",
     "stepUpTitle": "Re-authenticate",
     "stepUpDescription": "This action requires an OTP. The code was sent to your email.",
     "stepUpAction": "Verify action"
@@ -78,6 +82,7 @@
     "attendance": "Attendance",
     "penalties": "Penalties",
     "payroll": "Payroll",
+    "periodOverview": "Period overview",
     "approvals": "Pending approval",
     "publishing": "Publish & lock",
     "complaints": "Complaints",
@@ -85,11 +90,12 @@
     "vault": "Employee Vault",
     "users": "CMS users",
     "audit": "Audit log",
+    "password": "Change password",
     "needPermission": "Your account cannot open this item"
   },
   "dashboard": {
     "title": "Dashboard",
-    "description": "Import attendance, penalties and payroll by period; keep entry and approval separate; publish before the 3rd and 11th.",
+    "description": "Import attendance with penalties on one sheet (one ATTENDANCE session); reload penalties only when needed; payroll is a separate sheet. Keep entry and approval separate; publish before the 3rd and 11th.",
     "attendanceDeadline": "Attendance & penalties: publish by the 3rd",
     "payrollDeadline": "Payroll: publish by the 11th",
     "imports": "Import sessions",
@@ -99,6 +105,7 @@
     "quickImport": "New import",
     "quickApprovals": "Review sessions",
     "quickComplaints": "Handle complaints",
+    "quickOverview": "Gaps & confirmations",
     "apiCatalog": "Implemented CMS APIs",
     "adminHint": "System admin can view period data, approve and publish, but cannot upload files (separation of duties). Create a Data entry account to import Excel.",
     "createDataEntry": "Create data-entry account",
@@ -196,7 +203,7 @@
   },
   "employees": {
     "title": "Employees",
-    "description": "Roster synced from LARK or imported from Excel. New rows start as not linked to LARK.",
+    "description": "Roster synced from LARK or imported from Excel. Open a profile to see attendance, penalties, payroll by period, complaints and wallet requests.",
     "importTitle": "Import roster",
     "importDescription": "Upload .xlsx or .csv with employee code and full name. This does not replace LARK sync.",
     "importHint": "Columns: Employee code, Full name, Department, Position, Hired at (MM/DD/YY).",
@@ -215,7 +222,34 @@
     "walletPlatform": "Wallet platform",
     "walletNetwork": "Wallet network",
     "detail": "Employee profile",
-    "searchPlaceholder": "Code or name"
+    "searchPlaceholder": "Code or name",
+    "idFilter": "Employee ID",
+    "viewComplaints": "Complaints",
+    "viewWallet": "Wallet changes",
+    "openList": "Open full list",
+    "noPeriodData": "No payroll or penalty data for this employee yet.",
+    "portalTitle": "Change employee password",
+    "portalHint": "Set a new password for the employee portal account. By default they must change it on next login. Password: 12–128 characters, letter + digit, must not contain the employee code.",
+    "portalMissing": "No portal account yet — submitting the form below will create one and set the password.",
+    "portalReason": "Reason (min 10 characters)",
+    "provisionPortal": "Create account (random temporary password)",
+    "resetPortalPassword": "Generate random temporary password",
+    "setPortalPassword": "Change password",
+    "mustChangeOnLogin": "Require the employee to change this password on next login",
+    "newPassword": "New password",
+    "confirmPassword": "Repeat new password",
+    "portalPasswordSet": "Password updated. The employee signs in with it and must change it if you left that option on.",
+    "portalPasswordCreated": "Account created with this password. Share it with the employee — they must change it on login if you left that option on.",
+    "portalWriteHint": "Your account needs employee:write permission to change passwords.",
+    "portalProvisioned": "Account created. Share the temporary password — they must change it on login.",
+    "portalPasswordReset": "Password reset. The employee must change it on next login.",
+    "mustChangePassword": "Must change password",
+    "lastLoginAt": "Last login",
+    "passwordChangedAt": "Password changed at"
+  },
+  "passwordChange": {
+    "REQUIRED": "Must change on login",
+    "DONE": "Already changed"
   },
   "employeeSync": {
     "title": "Sync employees from LARK",
@@ -238,11 +272,20 @@
   },
   "imports": {
     "title": "Import files",
-    "description": "Upload the HR Excel template. Attendance and penalties share a sheet but are two separate sessions.",
+    "description": "Primary path: Attendance + penalties. The API reads the «chấm công + phạt» sheet, stores days, and auto-creates penalty staging. Reload penalties only to replace amounts.",
     "create": "Upload file",
     "file": "Excel file",
     "downloadTemplate": "Download Excel template",
-    "fileHint": "Choose an .xlsx HR template. The same file is used for attendance and penalties (sheet chấm công + phạt) and payroll (sheet lương).",
+    "fileHint": ".xlsx or .csv only. Sheet «chấm công + phạt» for ATTENDANCE (and PENALTY reloads); sheet «lương» for PAYROLL.",
+    "typeHint": {
+      "ATTENDANCE": "Template attendance-monthly-v1. Required: employee code, days worked, days in period. Penalty amount is optional — the API creates companion penalty staging in the same session for one approval/publish.",
+      "PENALTY": "Template penalty-monthly-v1, same sheet. Reloads penalty amounts only; day columns are cross-check. Not the primary import path.",
+      "PAYROLL": "Template payroll-monthly-v1, sheet «lương»."
+    },
+    "openAttendanceStaging": "Attendance staging",
+    "openPenaltyStaging": "Penalty staging",
+    "openPayrollStaging": "Payroll staging",
+    "totalPenaltyAmount": "Total penalty amount",
     "template": "Template",
     "uploaded": "File received",
     "validate": "Validate",
@@ -268,19 +311,20 @@
   },
   "attendance": {
     "title": "Attendance",
-    "description": "Period totals: working days, overtime, special leave, unpaid leave.",
+    "description": "Period totals from the attendance + penalty sheet. Editing the penalty amount here syncs companion penalty staging.",
     "workingDays": "Days in period",
     "actualDays": "Days worked",
     "overtime": "Overtime days",
     "specialLeave": "Special leave",
     "unpaidLeave": "Unpaid leave",
     "employedDays": "Employed days",
+    "penaltyAmount": "Penalty amount",
     "edit": "Edit staging",
     "saved": "Saved. A pending session is pulled back to Validated."
   },
   "penalties": {
     "title": "Penalties",
-    "description": "Total penalty amount for the period. Reasons are entered by OA, not the file.",
+    "description": "Penalty amounts for the period, usually created with an attendance session. Reasons are entered by OA, not the file. Editing the amount syncs the attendance penalty column.",
     "amount": "Amount",
     "currency": "Currency",
     "reason": "Penalty reason",
@@ -304,23 +348,26 @@
     "saved": "Saved."
   },
   "source": {
-    "staging": "Staging",
-    "published": "Published"
+    "label": "Source",
+    "staging": "Unpublished",
+    "published": "Published",
+    "hint": "Approved files stay unpublished until a publisher releases the period. Employees only see published data."
   },
   "approvals": {
     "title": "Pending approvals",
-    "description": "The approver must be different from the uploader. Match record count and total amount before approving.",
+    "description": "The approver must be different from the uploader. Match record count and total penalty amount (for attendance/penalty) before approving.",
     "approve": "Approve",
     "reject": "Reject",
     "expectedCount": "Reconciled record count",
-    "expectedAmount": "Reconciled total amount",
+    "expectedAmount": "Reconciled penalty total",
+    "expectedAmountHint": "For attendance sessions this is the sum of the penalty column, not payroll.",
     "approved": "Session approved",
     "rejected": "Session rejected",
     "rejectReason": "Rejection reason (min 10 characters)"
   },
   "publishing": {
     "title": "Publish and lock periods",
-    "description": "Only approved sessions can be published. Locking blocks new files and further publishes.",
+    "description": "Only approved sessions can be published. Publishing attendance also publishes companion penalties. Locking blocks new files and further publishes.",
     "publish": "Publish import session",
     "lock": "Lock period",
     "sessionId": "Approved import session ID",
@@ -431,6 +478,36 @@
     "EXPIRED": "Expired",
     "CANCELLED": "Cancelled"
   },
+  "coverageStatus": {
+    "PRESENT": "Present",
+    "MISSING": "Missing"
+  },
+  "confirmStatus": {
+    "CONFIRMED": "Confirmed",
+    "PENDING": "Not confirmed",
+    "NOT_PUBLISHED": "Not published"
+  },
+  "periodOverview": {
+    "title": "Period overview",
+    "description": "Compare employees who worked this month against attendance, penalty and payroll rows. Confirmations count only against the current published version.",
+    "tabs": {
+      "coverage": "Missing data",
+      "confirmations": "Employee confirmations"
+    },
+    "views": {
+      "all": "All employees",
+      "missing": "Missing only",
+      "unconfirmed": "Unconfirmed only"
+    },
+    "search": "Code or name",
+    "coverageHint": "Missing means the employee is on the period roster but has no attendance / penalty / payroll row. A zero penalty still needs a row (usually created with the attendance file). Unpublished rows are entered but not yet visible to employees.",
+    "confirmHint": "Employees confirm on the employee portal after data is published. A republish with a new version requires confirmation again.",
+    "missingShort": "missing",
+    "presentCount": "{{present}} / {{roster}} employees have data",
+    "confirmCount": "{{confirmed}} confirmed / {{published}} published ({{pending}} pending)",
+    "filteredCount": "{{count}} rows · roster {{roster}}",
+    "empty": "No employees match the current filters."
+  },
   "audit": {
     "title": "Audit log",
     "description": "Immutable log. Runtime cannot update or delete old events.",
@@ -447,6 +524,6 @@
   },
   "account": {
     "title": "My account",
-    "description": "Change your password. All other sessions will be revoked."
+    "description": "Change your password. Enter the new password twice. All other sessions will be revoked."
   }
 }

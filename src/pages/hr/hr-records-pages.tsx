@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { DataTable, type Column } from '@/components/shared/data-table';
+import { EmployeeLink } from '@/components/shared/employee-link';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
@@ -47,7 +48,9 @@ function compactFields(form: Record<string, string>) {
 function FilterBar() {
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const period = searchParams.get('period') ?? previousPeriod();
+  const employeeId = searchParams.get('employeeId') ?? '';
+  const periodParam = searchParams.get('period');
+  const period = periodParam ?? (employeeId ? '' : previousPeriod());
   const source = searchParams.get('source') ?? 'staging';
   const status = searchParams.get('status') ?? '';
   const importSessionId = searchParams.get('importSessionId') ?? '';
@@ -62,33 +65,42 @@ function FilterBar() {
   };
 
   return (
-    <div className={`${cardClass} mb-4 flex flex-wrap gap-2 p-4`}>
-      <Input
-        className="max-w-[140px]"
-        value={period}
-        onChange={(e) => update({ period: e.target.value })}
-        placeholder="YYYY-MM"
-      />
-      <Select value={source} onChange={(e) => update({ source: e.target.value })}>
-        <option value="staging">{t('source.staging')}</option>
-        <option value="published">{t('source.published')}</option>
-      </Select>
-      {source === 'staging' ? (
-        <Select value={status} onChange={(e) => update({ status: e.target.value })}>
-          <option value="">{t('common.all')}</option>
-          {WORKFLOW_FILTERS.map((value) => (
-            <option key={value} value={value}>
-              {t(`workflow.${value}`)}
-            </option>
-          ))}
+    <div className="mb-4">
+      <div className={`${cardClass} flex flex-wrap gap-2 p-4`}>
+        <Input
+          className="max-w-[140px]"
+          value={period}
+          onChange={(e) => update({ period: e.target.value })}
+          placeholder="YYYY-MM"
+        />
+        <Select value={source} onChange={(e) => update({ source: e.target.value })}>
+          <option value="staging">{t('source.staging')}</option>
+          <option value="published">{t('source.published')}</option>
         </Select>
-      ) : null}
-      <Input
-        className="max-w-[240px]"
-        value={importSessionId}
-        onChange={(e) => update({ importSessionId: e.target.value.trim() })}
-        placeholder={t('imports.sessionId')}
-      />
+        {source === 'staging' ? (
+          <Select value={status} onChange={(e) => update({ status: e.target.value })}>
+            <option value="">{t('common.all')}</option>
+            {WORKFLOW_FILTERS.map((value) => (
+              <option key={value} value={value}>
+                {t(`workflow.${value}`)}
+              </option>
+            ))}
+          </Select>
+        ) : null}
+        <Input
+          className="max-w-[240px]"
+          value={importSessionId}
+          onChange={(e) => update({ importSessionId: e.target.value.trim() })}
+          placeholder={t('imports.sessionId')}
+        />
+        <Input
+          className="max-w-[240px]"
+          value={employeeId}
+          onChange={(e) => update({ employeeId: e.target.value.trim() })}
+          placeholder={t('employees.idFilter')}
+        />
+      </div>
+      <p className="mt-2 text-xs text-[#9aa3b5]">{t('source.hint')}</p>
     </div>
   );
 }
@@ -96,7 +108,9 @@ function FilterBar() {
 function useHrFilters() {
   const [searchParams] = useSearchParams();
   const [page, setPage] = useState(1);
-  const period = searchParams.get('period') ?? previousPeriod();
+  const periodParam = searchParams.get('period');
+  const employeeId = searchParams.get('employeeId') ?? '';
+  const period = periodParam ?? (employeeId ? '' : previousPeriod());
   const source = searchParams.get('source') ?? 'staging';
   const status = searchParams.get('status') ?? '';
   const importSessionId = searchParams.get('importSessionId') ?? '';
@@ -106,12 +120,13 @@ function useHrFilters() {
     period,
     source,
     query: {
-      period,
+      period: period || undefined,
       source,
       page,
       pageSize: PAGE_SIZE,
       status: source === 'staging' && status ? status : undefined,
       importSessionId: importSessionId || undefined,
+      employeeId: employeeId || undefined,
     },
   };
 }
@@ -136,6 +151,7 @@ export function AttendanceListPage() {
       toast.success(t('attendance.saved'));
       setEditing(null);
       void queryClient.invalidateQueries({ queryKey: ['attendance'] });
+      void queryClient.invalidateQueries({ queryKey: ['penalties'] });
     },
     onError: (error) => toast.error(getApiErrorMessage(error)),
   });
@@ -152,6 +168,7 @@ export function AttendanceListPage() {
         specialLeaveDays: detail.specialLeaveDays ?? '',
         unpaidLeaveDays: detail.unpaidLeaveDays ?? '',
         employedDays: detail.employedDays ?? '',
+        penaltyAmount: detail.penaltyAmount ?? '',
         note: detail.note ?? '',
       });
     } catch (error) {
@@ -160,7 +177,11 @@ export function AttendanceListPage() {
   };
 
   const columns: Column<AttendanceRecord>[] = [
-    { key: 'employeeCode', header: t('employees.code'), render: (row) => row.employeeCode ?? row.employeeId ?? '—' },
+    {
+      key: 'employeeCode',
+      header: t('employees.code'),
+      render: (row) => <EmployeeLink id={row.employeeId} code={row.employeeCode ?? row.employeeId} />,
+    },
     { key: 'period', header: t('common.period') },
     { key: 'periodWorkingDays', header: t('attendance.workingDays'), render: (row) => moneyText(row.periodWorkingDays ?? row.summary?.periodWorkingDays) },
     { key: 'actualWorkedDays', header: t('attendance.actualDays'), render: (row) => moneyText(row.actualWorkedDays ?? row.summary?.actualWorkedDays) },
@@ -168,6 +189,11 @@ export function AttendanceListPage() {
     { key: 'specialLeaveDays', header: t('attendance.specialLeave'), render: (row) => moneyText(row.specialLeaveDays ?? row.summary?.specialLeaveDays) },
     { key: 'unpaidLeaveDays', header: t('attendance.unpaidLeave'), render: (row) => moneyText(row.unpaidLeaveDays ?? row.summary?.unpaidLeaveDays) },
     { key: 'employedDays', header: t('attendance.employedDays'), render: (row) => moneyText(row.employedDays) },
+    {
+      key: 'penaltyAmount',
+      header: t('attendance.penaltyAmount'),
+      render: (row) => moneyText(row.penaltyAmount),
+    },
     { key: 'status', header: t('common.status'), render: (row) => <StatusBadge value={row.status} ns="workflow" /> },
   ];
 
@@ -205,6 +231,7 @@ export function AttendanceListPage() {
             ['specialLeaveDays', 'specialLeave'],
             ['unpaidLeaveDays', 'unpaidLeave'],
             ['employedDays', 'employedDays'],
+            ['penaltyAmount', 'penaltyAmount'],
             ['note', 'note'],
           ] as const
         ).map(([key, label]) => (
@@ -247,6 +274,7 @@ export function PenaltiesListPage() {
       toast.success(t('penalties.saved'));
       setEditing(null);
       void queryClient.invalidateQueries({ queryKey: ['penalties'] });
+      void queryClient.invalidateQueries({ queryKey: ['attendance'] });
     },
     onError: (error) => toast.error(getApiErrorMessage(error)),
   });
@@ -264,7 +292,11 @@ export function PenaltiesListPage() {
   };
 
   const columns: Column<PenaltyRecord>[] = [
-    { key: 'employeeCode', header: t('employees.code'), render: (row) => row.employeeCode ?? row.employeeId ?? '—' },
+    {
+      key: 'employeeCode',
+      header: t('employees.code'),
+      render: (row) => <EmployeeLink id={row.employeeId} code={row.employeeCode ?? row.employeeId} />,
+    },
     { key: 'period', header: t('common.period') },
     { key: 'amount', header: t('penalties.amount'), render: (row) => moneyText(row.amount ?? row.totalAmount) },
     { key: 'currency', header: t('penalties.currency') },
@@ -362,7 +394,11 @@ export function PayrollListPage() {
   };
 
   const columns: Column<PayrollRecord>[] = [
-    { key: 'employeeCode', header: t('employees.code'), render: (row) => row.employeeCode ?? row.employeeId ?? '—' },
+    {
+      key: 'employeeCode',
+      header: t('employees.code'),
+      render: (row) => <EmployeeLink id={row.employeeId} code={row.employeeCode ?? row.employeeId} />,
+    },
     { key: 'period', header: t('common.period') },
     { key: 'baseSalary', header: t('payroll.baseSalary'), render: (row) => moneyText(row.baseSalary) },
     { key: 'periodSalary', header: t('payroll.periodSalary'), render: (row) => moneyText(row.periodSalary) },

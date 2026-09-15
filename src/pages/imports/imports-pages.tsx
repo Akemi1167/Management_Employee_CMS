@@ -27,12 +27,28 @@ import {
   validateImport,
 } from '@/services/import.service';
 import { useAuthStore } from '@/stores/auth-store';
-import type { DataType, ImportRowError, ImportSessionListItem } from '@/types/api';
+import type { DataType, ImportRowError, ImportSessionDetail, ImportSessionListItem } from '@/types/api';
 
-function stagingPath(dataType: DataType) {
-  if (dataType === 'PENALTY') return '/penalties';
-  if (dataType === 'PAYROLL') return '/payroll';
-  return '/attendance';
+function stagingQuery(session: { id: string; period: string }) {
+  return `source=staging&importSessionId=${session.id}&period=${session.period}`;
+}
+
+function stagingLinks(session: ImportSessionDetail) {
+  const query = stagingQuery(session);
+  if (session.dataType === 'PAYROLL') {
+    return [{ to: `/payroll?${query}`, labelKey: 'imports.openPayrollStaging' as const }];
+  }
+  if (session.dataType === 'PENALTY') {
+    return [{ to: `/penalties?${query}`, labelKey: 'imports.openPenaltyStaging' as const }];
+  }
+  return [
+    { to: `/attendance?${query}`, labelKey: 'imports.openAttendanceStaging' as const },
+    { to: `/penalties?${query}`, labelKey: 'imports.openPenaltyStaging' as const },
+  ];
+}
+
+function hasBlockingFindings(session: ImportSessionDetail) {
+  return (session.sessionFindings ?? []).some((finding) => finding.severity === 'ERROR');
 }
 
 export function ImportsListPage() {
@@ -143,6 +159,7 @@ export function ImportCreatePage() {
             <option value="PENALTY">{t('dataType.PENALTY')}</option>
             <option value="PAYROLL">{t('dataType.PAYROLL')}</option>
           </Select>
+          <p className="text-xs text-[#9aa3b5]">{t(`imports.typeHint.${dataType}`)}</p>
         </div>
         <div className="space-y-1.5">
           <Label>{t('common.period')}</Label>
@@ -158,7 +175,7 @@ export function ImportCreatePage() {
         </div>
         <div className="space-y-1.5">
           <Label>{t('imports.file')}</Label>
-          <Input type="file" accept=".xlsx,.xls,.csv" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+          <Input type="file" accept=".xlsx,.csv" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
           <p className="text-xs text-[#9aa3b5]">{t('imports.fileHint')}</p>
         </div>
         <div className="flex gap-2">
@@ -225,7 +242,22 @@ export function ImportDetailPage() {
     { key: 'code', header: t('imports.code') },
     { key: 'severity', header: t('imports.severity'), render: (row) => <StatusBadge value={row.severity} /> },
     { key: 'message', header: t('complaints.reason') },
-    { key: 'employeeCode', header: t('employees.code') },
+    {
+      key: 'employeeCode',
+      header: t('employees.code'),
+      render: (row) =>
+        row.employeeCode ? (
+          <Link
+            to={`/employees?query=${encodeURIComponent(row.employeeCode)}`}
+            className="text-[#4ade80] hover:underline"
+            onClick={(event) => event.stopPropagation()}
+          >
+            {row.employeeCode}
+          </Link>
+        ) : (
+          '—'
+        ),
+    },
   ];
 
   return (
@@ -240,7 +272,7 @@ export function ImportDetailPage() {
       />
       {session ? (
         <>
-          <div className={`${cardClass} mb-4 grid gap-3 p-5 sm:grid-cols-4`}>
+          <div className={`${cardClass} mb-4 grid gap-3 p-5 sm:grid-cols-2 lg:grid-cols-4`}>
             <div>
               <p className="text-[11px] uppercase text-[#9aa3b5]">{t('common.status')}</p>
               <StatusBadge value={session.status} ns="workflow" />
@@ -248,15 +280,22 @@ export function ImportDetailPage() {
             <div>
               <p className="text-[11px] uppercase text-[#9aa3b5]">{t('common.dataType')}</p>
               <p>{t(`dataType.${session.dataType}`)}</p>
+              <p className="text-xs text-[#9aa3b5]">{session.templateVersion}</p>
             </div>
             <div>
               <p className="text-[11px] uppercase text-[#9aa3b5]">{t('imports.validRows')}</p>
               <p>
                 {session.totals.validRows}/{session.totals.totalRows}
               </p>
+              <p className="text-xs text-[#9aa3b5]">
+                {t('imports.errorRows')} {session.totals.errorRows} · {t('imports.warningRows')}{' '}
+                {session.totals.warningRows}
+              </p>
             </div>
             <div>
-              <p className="text-[11px] uppercase text-[#9aa3b5]">{t('imports.totalAmount')}</p>
+              <p className="text-[11px] uppercase text-[#9aa3b5]">
+                {session.dataType === 'PAYROLL' ? t('imports.totalAmount') : t('imports.totalPenaltyAmount')}
+              </p>
               <p>{moneyText(session.totals.totalAmount)}</p>
             </div>
           </div>
@@ -266,6 +305,9 @@ export function ImportDetailPage() {
               {session.sessionFindings.map((finding) => (
                 <p key={`${finding.code}-${finding.message}`} className="text-sm text-[#b8bfd0]">
                   <StatusBadge value={finding.severity} /> {finding.message} ({finding.affectedCount})
+                  {finding.sampleEmployeeCodes?.length
+                    ? ` · ${finding.sampleEmployeeCodes.join(', ')}`
+                    : null}
                 </p>
               ))}
             </div>
@@ -277,17 +319,23 @@ export function ImportDetailPage() {
               </Button>
             ) : null}
             {canSubmit && session.status === 'VALIDATED' ? (
-              <Button onClick={() => submit.mutate()} disabled={submit.isPending || session.totals.errorRows > 0}>
+              <Button
+                onClick={() => submit.mutate()}
+                disabled={
+                  submit.isPending ||
+                  session.totals.errorRows > 0 ||
+                  session.totals.validRows < 1 ||
+                  hasBlockingFindings(session)
+                }
+              >
                 {t('imports.submit')}
               </Button>
             ) : null}
-            <Button variant="outline" asChild>
-              <Link
-                to={`${stagingPath(session.dataType)}?source=staging&importSessionId=${session.id}&period=${session.period}`}
-              >
-                {t('imports.openStaging')}
-              </Link>
-            </Button>
+            {stagingLinks(session).map((link) => (
+              <Button key={link.to} variant="outline" asChild>
+                <Link to={link.to}>{t(link.labelKey)}</Link>
+              </Button>
+            ))}
           </div>
           <div className={`${cardClass} mb-4 flex flex-wrap gap-2 p-4`}>
             <Select

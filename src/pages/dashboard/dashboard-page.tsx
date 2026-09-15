@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { CalendarCheck, ClipboardList, FileUp, ShieldCheck, Users } from 'lucide-react';
+import { CalendarCheck, ClipboardList, FileUp, ListChecks, ShieldCheck, Users } from 'lucide-react';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/shared/status-badge';
@@ -9,10 +9,12 @@ import { Button } from '@/components/ui/button';
 import { cardClass, textBody, textTitle } from '@/constants/theme';
 import { API_MODULES } from '@/constants/navigation';
 import { PERMISSION } from '@/constants/api-endpoints';
+import { previousPeriod } from '@/lib/period';
 import { fetchImports } from '@/services/import.service';
 import { fetchPendingApprovals } from '@/services/workflow.service';
 import { fetchComplaints } from '@/services/complaint.service';
 import { fetchEmployees } from '@/services/employee.service';
+import { fetchPeriodOverview } from '@/services/reports.service';
 import { useAuthStore } from '@/stores/auth-store';
 
 function StatCard({
@@ -56,6 +58,18 @@ export function DashboardPage() {
     queryFn: () => fetchComplaints({ page: 1, pageSize: 1, status: 'NEW' }),
     enabled: has(PERMISSION.COMPLAINT_READ),
   });
+  const overview = useQuery({
+    queryKey: ['dashboard-overview', previousPeriod()],
+    queryFn: () =>
+      fetchPeriodOverview({
+        period: previousPeriod(),
+        view: 'missing',
+        source: 'staging',
+        page: 1,
+        pageSize: 1,
+      }),
+    enabled: has(PERMISSION.ATTENDANCE_READ),
+  });
   const employees = useQuery({
     queryKey: ['dashboard-employees'],
     queryFn: () => fetchEmployees({ page: 1, pageSize: 1 }),
@@ -84,6 +98,15 @@ export function DashboardPage() {
         {has(PERMISSION.COMPLAINT_READ) ? (
           <StatCard title={t('dashboard.complaints')} value={complaints.data?.total ?? '—'} icon={ClipboardList} />
         ) : null}
+        {has(PERMISSION.ATTENDANCE_READ) ? (
+          <Link to="/period-overview" className="block">
+            <StatCard
+              title={t('periodOverview.tabs.coverage')}
+              value={overview.data?.total ?? '—'}
+              icon={ListChecks}
+            />
+          </Link>
+        ) : null}
         {has(PERMISSION.EMPLOYEE_READ) ? (
           <StatCard title={t('dashboard.employees')} value={employees.data?.total ?? '—'} icon={Users} />
         ) : null}
@@ -100,6 +123,11 @@ export function DashboardPage() {
         {has(PERMISSION.COMPLAINT_READ) ? (
           <Button variant="outline" asChild>
             <Link to="/complaints">{t('dashboard.quickComplaints')}</Link>
+          </Button>
+        ) : null}
+        {has(PERMISSION.ATTENDANCE_READ) ? (
+          <Button variant="outline" asChild>
+            <Link to="/period-overview">{t('dashboard.quickOverview')}</Link>
           </Button>
         ) : null}
         {has(PERMISSION.ATTENDANCE_READ) ? (

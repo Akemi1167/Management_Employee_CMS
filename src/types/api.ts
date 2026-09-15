@@ -143,6 +143,17 @@ export interface Employee {
     platform: string | null;
     network: string | null;
   };
+  portalAccount?: EmployeePortalAccount | null;
+}
+
+export interface EmployeePortalAccount {
+  id: string;
+  username: string;
+  email: string | null;
+  status: string;
+  mustChangePassword: boolean;
+  lastLoginAt: string | null;
+  passwordChangedAt: string | null;
 }
 
 export interface SyncCounters {
@@ -199,6 +210,7 @@ export interface AttendanceRecord {
   specialLeaveDays: string | null;
   unpaidLeaveDays: string | null;
   employedDays: string | null;
+  penaltyAmount?: string | null;
   note: string | null;
   isCurrent?: boolean;
   isLocked?: boolean;
@@ -431,6 +443,55 @@ export interface ControlledDecryptRequest {
   decryptedRecordCount: number | null;
   createdAt: string | null;
   updatedAt: string | null;
+}
+
+export type PeriodOverviewView = 'all' | 'missing' | 'unconfirmed';
+export type PeriodOverviewSource = 'staging' | 'published';
+export type HrDataType = 'ATTENDANCE' | 'PENALTY' | 'PAYROLL';
+
+export interface PeriodEmployeeTypeStatus {
+  staging: boolean;
+  published: boolean;
+  confirmed: boolean;
+  confirmedAt: string | null;
+}
+
+export interface PeriodCoverageSummary {
+  dataType: HrDataType;
+  periodStatus: string | null;
+  currentVersion: number | null;
+  rosterCount: number;
+  stagingPresent: number;
+  stagingMissing: number;
+  publishedPresent: number;
+  publishedMissing: number;
+  confirmed: number;
+  unconfirmed: number;
+}
+
+export interface PeriodOverviewEmployee {
+  employeeId: string;
+  employeeCode: string;
+  fullName: string;
+  departmentCode: string;
+  employmentStatus: string;
+  attendance: PeriodEmployeeTypeStatus;
+  penalty: PeriodEmployeeTypeStatus;
+  payroll: PeriodEmployeeTypeStatus;
+  missingTypes: HrDataType[];
+  unconfirmedTypes: HrDataType[];
+}
+
+export interface PeriodOverview {
+  period: string;
+  view: PeriodOverviewView;
+  source: PeriodOverviewSource;
+  rosterCount: number;
+  summaries: PeriodCoverageSummary[];
+  page: number;
+  pageSize: number;
+  total: number;
+  items: PeriodOverviewEmployee[];
 }
 
 export interface AuditEvent {

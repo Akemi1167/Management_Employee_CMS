@@ -5,6 +5,7 @@ import {
   FileUp,
   KeyRound,
   LayoutDashboard,
+  ListChecks,
   Lock,
   ScrollText,
   ShieldCheck,
@@ -91,6 +92,12 @@ export const NAVIGATION: NavGroup[] = [
     titleKey: 'nav.groups.workflow',
     items: [
       {
+        labelKey: 'nav.periodOverview',
+        to: '/period-overview',
+        icon: ListChecks,
+        permission: PERMISSION.ATTENDANCE_READ,
+      },
+      {
         labelKey: 'nav.approvals',
         to: '/approvals',
         icon: ShieldCheck,
@@ -142,6 +149,11 @@ export const NAVIGATION: NavGroup[] = [
         icon: ScrollText,
         permission: PERMISSION.AUDIT_READ,
       },
+      {
+        labelKey: 'nav.password',
+        to: '/account/password',
+        icon: KeyRound,
+      },
     ],
   },
 ];
@@ -156,6 +168,7 @@ export const PATH_PERMISSIONS: Array<{ match: string; permission?: string; permi
   { match: '/attendance', permission: PERMISSION.ATTENDANCE_READ },
   { match: '/penalties', permission: PERMISSION.PENALTY_READ },
   { match: '/payroll', permission: PERMISSION.PAYROLL_READ },
+  { match: '/period-overview', permission: PERMISSION.ATTENDANCE_READ },
   { match: '/approvals', permission: PERMISSION.DATA_APPROVE },
   {
     match: '/publishing',
@@ -242,6 +255,14 @@ export const API_MODULES: ApiModuleCard[] = [
     to: '/payroll',
     status: 'live',
     permission: PERMISSION.PAYROLL_READ,
+    rolesKey: 'dashboard.roles.hrRead',
+  },
+  {
+    id: 'periodOverview',
+    labelKey: 'nav.periodOverview',
+    to: '/period-overview',
+    status: 'live',
+    permission: PERMISSION.ATTENDANCE_READ,
     rolesKey: 'dashboard.roles.hrRead',
   },
   {

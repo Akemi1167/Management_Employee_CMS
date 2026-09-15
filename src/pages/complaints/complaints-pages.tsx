@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { DataTable, type Column } from '@/components/shared/data-table';
+import { EmployeeLink } from '@/components/shared/employee-link';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,10 +24,11 @@ import type { Complaint } from '@/types/api';
 export function ComplaintsListPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [status, setStatus] = useState('');
   const [subjectType, setSubjectType] = useState('');
   const [period, setPeriod] = useState('');
-  const [employeeCode, setEmployeeCode] = useState('');
+  const [employeeCode, setEmployeeCode] = useState(searchParams.get('employeeCode') ?? '');
   const [assignedToMe, setAssignedToMe] = useState(false);
   const [page, setPage] = useState(1);
 
@@ -46,7 +48,7 @@ export function ComplaintsListPage() {
 
   const columns: Column<Complaint>[] = [
     { key: 'code', header: t('complaints.code') },
-    { key: 'employeeCode', header: t('employees.code') },
+    { key: 'employeeCode', header: t('employees.code'), render: (row) => <EmployeeLink id={row.employeeId} code={row.employeeCode} /> },
     { key: 'employeeName', header: t('employees.name') },
     { key: 'subjectType', header: t('common.dataType'), render: (row) => t(`dataType.${row.subjectType}`) },
     { key: 'period', header: t('common.period') },
@@ -148,7 +150,9 @@ export function ComplaintDetailPage() {
       {data ? (
         <div className="space-y-4">
           <div className={`${cardClass} grid gap-3 p-5 sm:grid-cols-2`}>
-            <p>{t('employees.code')}: {data.employeeCode} — {data.employeeName}</p>
+            <p>
+              {t('employees.code')}: <EmployeeLink id={data.employeeId} code={data.employeeCode} /> — {data.employeeName}
+            </p>
             <p>{t('common.dataType')}: {t(`dataType.${data.subjectType}`)} / {data.period}</p>
             <p>{t('common.status')}: <StatusBadge value={data.status} ns="complaintStatus" /></p>
             <p>{t('complaints.dataVersion')}: {data.dataVersion}</p>

@@ -24,10 +24,15 @@ export async function fetchMe() {
   return apiGet<AuthUser>(API_ENDPOINTS.AUTH.ME);
 }
 
-export async function changePassword(currentPassword: string, newPassword: string) {
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string,
+  confirmPassword: string,
+) {
   return apiPost<AuthenticatedResult>(API_ENDPOINTS.AUTH.PASSWORD_CHANGE, {
     currentPassword,
     newPassword,
+    confirmPassword,
   });
 }
 

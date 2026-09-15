@@ -11,7 +11,7 @@ const ATTENDANCE_HEADERS_VI = [
   'Số ngày làm thực tế',
   'Số ngày tăng ca',
   'Số ngày trong tháng',
-  'OFF đặc biệt',
+  'OFF ĐẶC BIỆT',
   'Số tiền phạt',
   'Số ngày nghỉ không lương',
 ];
@@ -28,7 +28,7 @@ const ATTENDANCE_HEADERS_ZH = [
   '加班天数',
   '考勤天数',
   '特休',
-  '罚款',
+  '罚',
   '请假',
 ];
 

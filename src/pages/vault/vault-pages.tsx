@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { DataTable, type Column } from '@/components/shared/data-table';
+import { EmployeeLink } from '@/components/shared/employee-link';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { StepUpDialog } from '@/components/shared/step-up-dialog';
 import { Button } from '@/components/ui/button';
@@ -110,7 +111,7 @@ export function VaultPage() {
 
   const recoveryColumns: Column<VaultRecoveryRequest>[] = [
     { key: 'code', header: t('complaints.code') },
-    { key: 'employeeCode', header: t('employees.code') },
+    { key: 'employeeCode', header: t('employees.code'), render: (row) => <EmployeeLink id={row.employeeId} code={row.employeeCode} /> },
     { key: 'status', header: t('common.status'), render: (row) => <StatusBadge value={row.status} ns="vaultStatus" /> },
     { key: 'expiresAt', header: t('vault.expiresAt'), render: (row) => formatDate(row.expiresAt) },
     {
@@ -299,7 +300,7 @@ export function VaultRecoveryDetailPage() {
       {row ? (
         <div className={`${cardClass} space-y-3 p-6 text-sm`}>
           <p>
-            {t('employees.code')}: {row.employeeCode ?? row.employeeId}
+            {t('employees.code')}: <EmployeeLink id={row.employeeId} code={row.employeeCode ?? row.employeeId} />
           </p>
           <p>
             {t('common.reason')}: {row.reason}

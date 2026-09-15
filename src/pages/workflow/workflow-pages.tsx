@@ -157,6 +157,7 @@ export function ApprovalsListPage() {
             <div className="mb-3 space-y-1.5">
               <Label>{t('approvals.expectedAmount')}</Label>
               <Input value={expectedTotalAmount} onChange={(e) => setExpectedTotalAmount(e.target.value)} />
+              <p className="text-xs text-[#9aa3b5]">{t('approvals.expectedAmountHint')}</p>
             </div>
           </>
         ) : null}

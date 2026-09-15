@@ -1,4 +1,4 @@
-import { LogOut, UserRound } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { AppCopyright } from '@/components/AppCopyright';
@@ -33,11 +33,11 @@ export function SidebarFooter() {
           </p>
         </div>
         <Link
-          to="/account"
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[#9aa3b5] hover:bg-[#181c26] hover:text-[#eef0f6]"
-          title={t('account.title')}
+          to="/account/password"
+          className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-[#9aa3b5] hover:bg-[#181c26] hover:text-[#eef0f6]"
+          title={t('nav.password')}
         >
-          <UserRound className="h-3.5 w-3.5" />
+          {t('nav.password')}
         </Link>
         <button
           type="button"

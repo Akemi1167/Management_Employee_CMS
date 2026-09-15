@@ -16,6 +16,7 @@ import { UserCreatePage, UserDetailPage, UsersListPage } from '@/pages/users/use
 import { WalletRequestDetailPage, WalletRequestsPage } from '@/pages/wallet/wallet-pages';
 import { VaultDecryptDetailPage, VaultPage, VaultRecoveryDetailPage } from '@/pages/vault/vault-pages';
 import { AuditListPage } from '@/pages/audit/audit-list-page';
+import { PeriodOverviewPage } from '@/pages/reports/period-overview-page';
 
 export function AppRoutes() {
   return (
@@ -42,6 +43,7 @@ export function AppRoutes() {
               <Route path="attendance" element={<AttendanceListPage />} />
               <Route path="penalties" element={<PenaltiesListPage />} />
               <Route path="payroll" element={<PayrollListPage />} />
+              <Route path="period-overview" element={<PeriodOverviewPage />} />
               <Route path="approvals" element={<ApprovalsListPage />} />
               <Route path="publishing" element={<PublishingPage />} />
               <Route path="complaints" element={<ComplaintsListPage />} />

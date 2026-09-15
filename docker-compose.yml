@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  web:
+    image: management_employee_cms_web:latest
+    build: .
+    ports:
+      - "3092:80" # CMS Web: host 3092 → Nginx container 80
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+    networks:
+      - emp_cms_network
+
+networks:
+  emp_cms_network:
+    external: true # Kết nối chung network với API (nếu cần thiết sau này, hiện tại proxy qua domain ngoài)

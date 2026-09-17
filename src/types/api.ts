@@ -396,12 +396,18 @@ export interface WalletChangeRequest {
   addressMasked: string;
   ownerNameMasked: string;
   previousAddressMasked: string | null;
+  reason: string;
   status: string;
   requiresException: boolean;
   exceptionReason: string | null;
+  hrVerifiedBy: string | null;
+  hrVerifiedAt: string | null;
+  hrNote: string | null;
+  employeeConsentedAt: string | null;
   reviewedBy: string | null;
   reviewedAt: string | null;
   rejectionReason: string | null;
+  hasImage: boolean;
   effectiveAt: string | null;
   appliedAt: string | null;
   createdAt: string | null;

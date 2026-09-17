@@ -124,7 +124,7 @@
       "complaint": "complaint_operator, system_admin",
       "admin": "system_admin",
       "auditor": "auditor — 不可与角色管理合并",
-      "wallet": "data_entry / system_admin 绑定钱包；wallet_approver 处理后续变更申请",
+      "wallet": "data_entry / complaint_operator 核实联系（wallet:verify）；wallet_approver 或管理员审批（不可为核验人）；OA 仅绑定首次钱包",
       "vault": "system_admin 发起 recovery；另一人审批（职责分离）"
     }
   },
@@ -203,7 +203,7 @@
   },
   "employees": {
     "title": "员工档案",
-    "description": "名单来自 LARK 同步或 Excel 花名册。打开档案可绑定钱包与截图、修改门户密码，并查看各期考勤、罚款、工资。",
+    "description": "名单来自 LARK 同步或 Excel 花名册。OA 仅在档案绑定首次钱包；之后变更需员工申请、人事核实联系、门户同意，再由另一审批人或管理员生效。",
     "importTitle": "导入花名册",
     "importDescription": "上传 .xlsx 或 .csv，工号与姓名必填。不能替代 LARK 同步。",
     "importHint": "列：工号、姓名、部门、职位、入职日期 (MM/DD/YY)。",
@@ -235,18 +235,21 @@
     "walletPlatform": "钱包平台",
     "walletNetwork": "钱包网络",
     "walletTitle": "钱包地址与截图",
-    "walletHint": "填写完整钱包地址并上传截图（JPEG/PNG/WEBP，最大 5 MB）。CMS 只保存脱敏地址和哈希，保存后不再显示完整地址。员工在门户用脱敏地址和图片核对。",
+    "walletHint": "仅首次绑定：填写完整钱包地址并上传截图（JPEG/PNG/WEBP，最大 5 MB）。CMS 只保存哈希、脱敏地址和图片，不保存明文。之后变更必须走支持申请。",
     "walletAddress": "完整钱包地址",
     "walletOwnerName": "钱包持有人姓名",
     "walletImage": "钱包截图",
     "walletImageHint": "必填。JPEG、PNG 或 WEBP，最大 5 MB。",
     "walletImageMissing": "尚未上传钱包截图",
     "walletAssigned": "已保存钱包与截图。CMS 不以明文保存完整地址。",
-    "walletWriteHint": "需要 wallet:write 权限（录入或系统管理员）才能绑定钱包。",
+    "walletWriteHint": "需要 wallet:write 权限（录入或系统管理员）才能绑定首次钱包。",
+    "walletChangeHint": "该员工已有钱包。OA 不能在此覆盖。员工提交支持申请；人事核实联系；员工在门户同意；再由与核验人不同的审批人或管理员生效。",
+    "walletOverrideHint": "仅 system_admin 可紧急覆盖。普通 OA 不能替换已绑定钱包，请走三步变更申请。",
     "walletHasImage": "有图",
     "walletEffectiveAt": "生效时间",
     "walletSource": "绑定来源",
-    "assignWallet": "绑定钱包",
+    "assignWallet": "绑定首次钱包",
+    "overrideWallet": "覆盖钱包（管理员）",
     "detail": "员工档案",
     "searchPlaceholder": "工号或姓名",
     "idFilter": "员工 ID",
@@ -478,11 +481,33 @@
   },
   "wallet": {
     "title": "钱包变更申请",
-    "description": "OA 在员工档案绑定钱包地址和截图。员工暂不可自助改钱包；本页保留后续审批流程。",
+    "description": "新钱包仅在三步完成后生效：人事核实联系、员工门户同意、另一审批人或管理员批准。",
+    "flowHint": "CMS 只保存哈希、脱敏地址和图片。核实联系的人不能审批同一申请。缺少员工同意时 API 返回 409。",
     "maskedOnly": "不显示完整钱包地址。CMS 不解密 vault。",
     "exception": "需要例外审批",
     "approveException": "批准锁定窗口例外",
     "owner": "持有人（脱敏）",
+    "previousWallet": "原钱包（脱敏）",
+    "employeeReason": "员工原因",
+    "proposedImage": "拟绑定截图",
+    "verifyContact": "确认已联系",
+    "verified": "已确认联系。员工需在门户同意。",
+    "waitingConsent": "等待员工在门户同意。",
+    "consentMissing": "尚不能批准：员工尚未在门户同意（API 返回 409）。",
+    "sodBlocked": "你已核实此申请的联系，因此不能审批。",
+    "nextStep": "下一步",
+    "next": {
+      "verify": "人事需核实联系",
+      "consent": "员工需在门户同意",
+      "approve": "审批人或管理员（非核验人）可生效",
+      "exception": "需要锁定窗口例外审批",
+      "done": "无需 CMS 继续操作"
+    },
+    "steps": {
+      "verify": "人事核实联系（wallet:verify）",
+      "consent": "员工在门户同意",
+      "approve": "审批人或管理员生效钱包（step-up）"
+    },
     "lockWindows": "钱包锁定窗口",
     "lockFrom": "锁定开始",
     "lockUntil": "锁定结束",
@@ -492,7 +517,8 @@
     "updated": "钱包申请已更新"
   },
   "walletStatus": {
-    "PENDING_VERIFICATION": "待核验",
+    "PENDING_VERIFICATION": "待核实联系",
+    "PENDING_APPROVAL": "待同意 / 审批",
     "PENDING_EXCEPTION_APPROVAL": "待例外审批",
     "APPROVED": "已批准",
     "REJECTED": "已拒绝",
@@ -510,7 +536,8 @@
     "OTHER": "其他"
   },
   "walletSource": {
-    "CMS_ADMIN": "OA / CMS"
+    "CMS_ADMIN": "OA / CMS",
+    "EMPLOYEE_REQUEST": "员工申请"
   },
   "vault": {
     "title": "Employee Vault",

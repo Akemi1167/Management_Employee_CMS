@@ -124,7 +124,7 @@
       "complaint": "complaint_operator, system_admin",
       "admin": "system_admin",
       "auditor": "auditor — không gộp với quản trị vai trò",
-      "wallet": "data_entry / system_admin gán mã ví; wallet_approver duyệt yêu cầu (giai đoạn sau)",
+      "wallet": "data_entry / complaint_operator xác nhận liên hệ (wallet:verify); wallet_approver hoặc admin duyệt (khác người xác nhận); OA chỉ gán ví lần đầu",
       "vault": "system_admin tạo recovery; người khác phê duyệt (tách nhiệm vụ)"
     }
   },
@@ -203,7 +203,7 @@
   },
   "employees": {
     "title": "Hồ sơ nhân viên",
-    "description": "Danh sách nhân viên đồng bộ từ LARK hoặc nhập roster Excel. Mở hồ sơ để gán mã ví + ảnh ví, đổi mật khẩu cổng, xem chấm công / phạt / lương theo kỳ.",
+    "description": "Danh sách nhân viên đồng bộ từ LARK hoặc nhập roster Excel. OA chỉ gán ví lần đầu trên hồ sơ; đổi ví sau đó qua yêu cầu hỗ trợ, xác nhận liên hệ, nhân viên đồng ý trên cổng, rồi người duyệt khác.",
     "importTitle": "Nhập roster",
     "importDescription": "File .xlsx hoặc .csv: mã nhân viên và họ tên bắt buộc. Không thay thế đồng bộ LARK.",
     "importHint": "Cột: Mã nhân viên, Họ tên, Bộ phận, Chức vụ, Ngày nhận việc (MM/DD/YY).",
@@ -235,18 +235,21 @@
     "walletPlatform": "Nền tảng ví",
     "walletNetwork": "Mạng ví",
     "walletTitle": "Mã ví và ảnh ví",
-    "walletHint": "Nhập mã ví đầy đủ và ảnh ví (JPEG/PNG/WEBP, tối đa 5 MB). CMS chỉ lưu bản che và hash — không hiện lại mã đầy đủ sau khi lưu. Nhân viên xem bản che + ảnh trên cổng để đối chiếu.",
+    "walletHint": "Chỉ gán lần đầu: nhập mã ví đầy đủ và ảnh ví (JPEG/PNG/WEBP, tối đa 5 MB). CMS lưu hash, bản che và ảnh — không lưu plaintext. Đổi ví sau đó phải qua yêu cầu hỗ trợ.",
     "walletAddress": "Mã ví đầy đủ",
     "walletOwnerName": "Tên chủ ví",
     "walletImage": "Ảnh ví",
     "walletImageHint": "Bắt buộc. JPEG, PNG hoặc WEBP, tối đa 5 MB.",
     "walletImageMissing": "Chưa có ảnh ví",
     "walletAssigned": "Đã gán mã ví và ảnh. Mã đầy đủ không được lưu trên CMS.",
-    "walletWriteHint": "Tài khoản của bạn cần quyền wallet:write (OA/nhập liệu hoặc quản trị) để gán mã ví.",
+    "walletWriteHint": "Tài khoản cần quyền wallet:write (OA/nhập liệu hoặc quản trị) để gán ví lần đầu.",
+    "walletChangeHint": "Nhân viên đã có ví. OA không ghi đè tại đây. Nhân viên gửi yêu cầu hỗ trợ; nhân sự xác nhận liên hệ; nhân viên đồng ý trên cổng; một người duyệt hoặc admin khác người xác nhận mới gắn ví mới.",
+    "walletOverrideHint": "Ghi đè khẩn cấp chỉ dành cho system_admin. OA thường không thay ví đã gán; dùng luồng 3 bước đổi ví.",
     "walletHasImage": "Có ảnh",
     "walletEffectiveAt": "Hiệu lực từ",
     "walletSource": "Nguồn gán",
-    "assignWallet": "Gán mã ví",
+    "assignWallet": "Gán ví lần đầu",
+    "overrideWallet": "Ghi đè ví (admin)",
     "detail": "Hồ sơ nhân viên",
     "searchPlaceholder": "Mã hoặc họ tên",
     "idFilter": "ID nhân viên",
@@ -478,11 +481,33 @@
   },
   "wallet": {
     "title": "Yêu cầu đổi mã ví",
-    "description": "OA gán mã ví và ảnh ví trên hồ sơ nhân viên. Nhân viên chưa tự đổi ví; trang này giữ luồng duyệt yêu cầu đổi ví cho giai đoạn sau.",
+    "description": "Ví mới chỉ gắn khi đủ 3 bước: nhân sự xác nhận liên hệ, nhân viên đồng ý trên cổng, rồi một người duyệt hoặc admin (khác người xác nhận) duyệt.",
+    "flowHint": "CMS chỉ lưu hash, bản che và ảnh. Người xác nhận liên hệ không được duyệt cùng yêu cầu. Thiếu bước nhân viên đồng ý thì API trả 409.",
     "maskedOnly": "Không hiển thị mã ví đầy đủ. Không giải mã vault trên CMS.",
     "exception": "Cần duyệt ngoại lệ",
     "approveException": "Duyệt ngoại lệ khóa kỳ",
     "owner": "Chủ ví (che)",
+    "previousWallet": "Ví cũ (che)",
+    "employeeReason": "Lý do nhân viên",
+    "proposedImage": "Ảnh ví đề xuất",
+    "verifyContact": "Xác nhận liên hệ",
+    "verified": "Đã xác nhận liên hệ. Nhân viên cần đồng ý trên cổng.",
+    "waitingConsent": "Đang chờ nhân viên đồng ý trên cổng nhân viên.",
+    "consentMissing": "Chưa duyệt được: nhân viên chưa đồng ý trên cổng (API trả 409).",
+    "sodBlocked": "Bạn đã xác nhận liên hệ yêu cầu này nên không được duyệt.",
+    "nextStep": "Bước tiếp",
+    "next": {
+      "verify": "Nhân sự cần xác nhận liên hệ",
+      "consent": "Nhân viên cần đồng ý trên cổng",
+      "approve": "Người duyệt hoặc admin (khác người xác nhận) có thể gắn ví",
+      "exception": "Cần duyệt ngoại lệ khóa kỳ",
+      "done": "Không còn thao tác CMS"
+    },
+    "steps": {
+      "verify": "Nhân sự xác nhận liên hệ (wallet:verify)",
+      "consent": "Nhân viên đồng ý trên cổng",
+      "approve": "Người duyệt hoặc admin gắn ví (step-up)"
+    },
     "lockWindows": "Cửa sổ khóa đổi ví",
     "lockFrom": "Khóa từ",
     "lockUntil": "Khóa đến",
@@ -492,7 +517,8 @@
     "updated": "Đã cập nhật yêu cầu đổi ví"
   },
   "walletStatus": {
-    "PENDING_VERIFICATION": "Chờ xác minh",
+    "PENDING_VERIFICATION": "Chờ xác nhận liên hệ",
+    "PENDING_APPROVAL": "Chờ đồng ý / duyệt",
     "PENDING_EXCEPTION_APPROVAL": "Chờ duyệt ngoại lệ",
     "APPROVED": "Đã duyệt",
     "REJECTED": "Từ chối",
@@ -510,7 +536,8 @@
     "OTHER": "Khác"
   },
   "walletSource": {
-    "CMS_ADMIN": "OA / CMS"
+    "CMS_ADMIN": "OA / CMS",
+    "EMPLOYEE_REQUEST": "Yêu cầu nhân viên"
   },
   "vault": {
     "title": "Employee Vault",

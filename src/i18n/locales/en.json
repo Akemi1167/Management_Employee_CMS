@@ -124,7 +124,7 @@
       "complaint": "complaint_operator, system_admin",
       "admin": "system_admin",
       "auditor": "auditor — not combined with role management",
-      "wallet": "data_entry / system_admin assign wallets; wallet_approver handles later change requests",
+      "wallet": "data_entry / complaint_operator verify contact (wallet:verify); wallet_approver or admin approves (not the verifier); OA assigns first wallet only",
       "vault": "system_admin requests recovery; a different user approves"
     }
   },
@@ -203,7 +203,7 @@
   },
   "employees": {
     "title": "Employees",
-    "description": "Roster synced from LARK or imported from Excel. Open a profile to assign wallet + image, change portal password, and view attendance, penalties and payroll by period.",
+    "description": "Roster synced from LARK or imported from Excel. OA assigns the first wallet on the profile; later changes go through employee request, HR contact check, portal consent, then a different approver.",
     "importTitle": "Import roster",
     "importDescription": "Upload .xlsx or .csv with employee code and full name. This does not replace LARK sync.",
     "importHint": "Columns: Employee code, Full name, Department, Position, Hired at (MM/DD/YY).",
@@ -235,18 +235,21 @@
     "walletPlatform": "Wallet platform",
     "walletNetwork": "Wallet network",
     "walletTitle": "Wallet address and image",
-    "walletHint": "Enter the full wallet address and a wallet screenshot (JPEG/PNG/WEBP, max 5 MB). CMS stores only the masked form and hashes — the full address is not shown again. Employees see the masked address plus image on the portal to verify.",
+    "walletHint": "First-time assignment only: enter the full wallet address and a screenshot (JPEG/PNG/WEBP, max 5 MB). CMS stores hash, masked address and image — not plaintext. Later changes must go through a support request.",
     "walletAddress": "Full wallet address",
     "walletOwnerName": "Wallet owner name",
     "walletImage": "Wallet image",
     "walletImageHint": "Required. JPEG, PNG or WEBP, max 5 MB.",
     "walletImageMissing": "No wallet image yet",
     "walletAssigned": "Wallet and image saved. The full address is not stored in plaintext on CMS.",
-    "walletWriteHint": "Your account needs wallet:write (data entry or system admin) to assign wallets.",
+    "walletWriteHint": "Your account needs wallet:write (data entry or system admin) to assign the first wallet.",
+    "walletChangeHint": "This employee already has a wallet. OA cannot overwrite it here. The employee submits a support request; HR confirms contact, the employee consents on the portal, then a different approver or admin applies it.",
+    "walletOverrideHint": "Emergency override for system_admin only. Normal OA cannot replace an assigned wallet; use the three-step change request.",
     "walletHasImage": "Has image",
     "walletEffectiveAt": "Effective from",
     "walletSource": "Assigned by",
-    "assignWallet": "Assign wallet",
+    "assignWallet": "Assign first wallet",
+    "overrideWallet": "Override wallet (admin)",
     "detail": "Employee profile",
     "searchPlaceholder": "Code or name",
     "idFilter": "Employee ID",
@@ -478,11 +481,33 @@
   },
   "wallet": {
     "title": "Wallet change requests",
-    "description": "OA assigns wallet addresses and images on the employee profile. Employees cannot change wallets themselves yet; this page keeps the later approval flow.",
+    "description": "Wallet changes apply only after HR confirms contact, the employee consents on the portal, and a different approver or admin signs off.",
+    "flowHint": "CMS stores hash, masked address and image only. Person who verified contact cannot approve the same request. Missing employee consent returns 409.",
     "maskedOnly": "Full wallet addresses are never shown. CMS does not decrypt the vault.",
     "exception": "Needs exception approval",
     "approveException": "Approve lock-window exception",
     "owner": "Owner (masked)",
+    "previousWallet": "Previous wallet (masked)",
+    "employeeReason": "Employee reason",
+    "proposedImage": "Proposed image",
+    "verifyContact": "Confirm contact",
+    "verified": "Contact confirmed. The employee must consent on the portal.",
+    "waitingConsent": "Waiting for the employee to consent on the portal.",
+    "consentMissing": "Cannot approve yet: the employee has not consented (API returns 409).",
+    "sodBlocked": "You confirmed contact on this request, so you cannot approve it.",
+    "nextStep": "Next step",
+    "next": {
+      "verify": "HR must confirm contact",
+      "consent": "Employee must consent on the portal",
+      "approve": "Approver or admin (not the verifier) can apply",
+      "exception": "Lock-window exception approval required",
+      "done": "No further CMS action"
+    },
+    "steps": {
+      "verify": "HR confirms contact (wallet:verify)",
+      "consent": "Employee consents on the portal",
+      "approve": "Approver or admin applies the wallet (step-up)"
+    },
     "lockWindows": "Wallet lock windows",
     "lockFrom": "Lock from",
     "lockUntil": "Lock until",
@@ -492,7 +517,8 @@
     "updated": "Wallet request updated"
   },
   "walletStatus": {
-    "PENDING_VERIFICATION": "Pending verification",
+    "PENDING_VERIFICATION": "Pending HR contact",
+    "PENDING_APPROVAL": "Pending consent / approval",
     "PENDING_EXCEPTION_APPROVAL": "Pending exception",
     "APPROVED": "Approved",
     "REJECTED": "Rejected",
@@ -510,7 +536,8 @@
     "OTHER": "Other"
   },
   "walletSource": {
-    "CMS_ADMIN": "OA / CMS"
+    "CMS_ADMIN": "OA / CMS",
+    "EMPLOYEE_REQUEST": "Employee request"
   },
   "vault": {
     "title": "Employee Vault",

@@ -18,6 +18,7 @@ import { cardClass, textSubtle } from '@/constants/theme';
 import { PERMISSION } from '@/constants/api-endpoints';
 import { getApiErrorMessage, moneyText } from '@/lib/api-client';
 import { dateInputToIso, formatDate, formatDay, toDateInput } from '@/lib/period';
+import { hasAssignedWallet } from '@/lib/wallet-workflow';
 import {
   fetchEmployee,
   fetchEmployeeWalletImage,
@@ -93,6 +94,7 @@ export function EmployeeDetailPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const period = searchParams.get('period') ?? '';
   const has = useAuthStore((s) => s.hasPermission);
+  const isAdmin = useAuthStore((s) => Boolean(s.user?.roles.includes('system_admin')));
 
   const { data, isLoading } = useQuery({
     queryKey: ['employee', id],
@@ -127,11 +129,11 @@ export function EmployeeDetailPage() {
                 </a>
               </Button>
             ) : null}
-            {has(PERMISSION.WALLET_WRITE) ? (
+            {has(PERMISSION.WALLET_WRITE) && (!hasAssignedWallet(data?.wallet) || isAdmin) ? (
               <Button variant="outline" asChild>
                 <a href="#employee-wallet">
                   <Wallet className="h-4 w-4" />
-                  {t('employees.assignWallet')}
+                  {t(hasAssignedWallet(data?.wallet) ? 'employees.overrideWallet' : 'employees.assignWallet')}
                 </a>
               </Button>
             ) : null}
@@ -155,7 +157,7 @@ export function EmployeeDetailPage() {
         <>
           <EmployeeProfileCard employee={data} />
 
-          <WalletAssignCard employeeId={id} wallet={data.wallet} />
+          <WalletAssignCard employeeId={id} employeeCode={data.employeeCode} wallet={data.wallet} />
 
           <PortalAccountCard employeeId={id} account={data.portalAccount ?? null} />
 
@@ -467,14 +469,22 @@ function WalletImagePreview({
 
 function WalletAssignCard({
   employeeId,
+  employeeCode,
   wallet,
 }: {
   employeeId: string;
+  employeeCode: string;
   wallet: Employee['wallet'];
 }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const canWrite = useAuthStore((s) => s.hasPermission(PERMISSION.WALLET_WRITE));
+  const canReadRequests = useAuthStore((s) => s.hasPermission(PERMISSION.WALLET_READ));
+  const isAdmin = useAuthStore((s) => Boolean(s.user?.roles.includes('system_admin')));
+  const assigned = hasAssignedWallet(wallet);
+  const canOverride = assigned && isAdmin && canWrite;
+  const canFirstAssign = !assigned && canWrite;
+  const showForm = canFirstAssign || canOverride;
   const [address, setAddress] = useState('');
   const [platform, setPlatform] = useState<WalletPlatform>('BINANCE');
   const [network, setNetwork] = useState<WalletNetwork>('BEP20');
@@ -501,7 +511,7 @@ function WalletAssignCard({
   }, [image]);
 
   const canSubmit =
-    canWrite &&
+    showForm &&
     address.replace(/\s+/g, '').trim().length >= 8 &&
     reason.trim().length >= 10 &&
     Boolean(image) &&
@@ -537,7 +547,9 @@ function WalletAssignCard({
         <Wallet className="h-4 w-4 text-[#4ade80]" />
         {t('employees.walletTitle')}
       </h2>
-      <p className="mb-4 text-xs text-[#9aa3b5]">{t('employees.walletHint')}</p>
+      <p className="mb-4 text-xs text-[#9aa3b5]">
+        {canOverride ? t('employees.walletOverrideHint') : assigned ? t('employees.walletChangeHint') : t('employees.walletHint')}
+      </p>
       <div className="mb-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label={t('employees.wallet')} value={wallet.addressMasked || '—'} />
@@ -565,7 +577,14 @@ function WalletAssignCard({
           />
         </div>
       </div>
-      {canWrite ? (
+      {canReadRequests ? (
+        <p className="mb-4 text-sm">
+          <Link to={`/wallet?employeeCode=${encodeURIComponent(employeeCode)}`} className="text-[#4ade80] hover:underline">
+            {t('employees.viewWallet')}
+          </Link>
+        </p>
+      ) : null}
+      {showForm ? (
         <div className="space-y-3 border-t border-[#2a3040] pt-4">
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5 sm:col-span-2">
@@ -633,10 +652,10 @@ function WalletAssignCard({
           </div>
           <Button disabled={!canSubmit || save.isPending} onClick={() => save.mutate()}>
             <Wallet className="h-4 w-4" />
-            {t('employees.assignWallet')}
+            {t(canOverride ? 'employees.overrideWallet' : 'employees.assignWallet')}
           </Button>
         </div>
-      ) : (
+      ) : assigned ? null : (
         <p className="text-sm text-[#fbbf24]">{t('employees.walletWriteHint')}</p>
       )}
       <StepUpDialog

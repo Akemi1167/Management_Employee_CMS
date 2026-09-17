@@ -13,6 +13,7 @@ import { Select } from '@/components/ui/select';
 import { cardClass } from '@/constants/theme';
 import { PERMISSION } from '@/constants/api-endpoints';
 import { formatDay } from '@/lib/period';
+import { hasAssignedWallet } from '@/lib/wallet-workflow';
 import { fetchEmployees } from '@/services/employee.service';
 import { useAuthStore } from '@/stores/auth-store';
 import type { Employee } from '@/types/api';
@@ -26,6 +27,7 @@ export function EmployeesListPage() {
   const canImport = useAuthStore((s) => s.hasPermission(PERMISSION.EMPLOYEE_WRITE));
   const canUpdate = useAuthStore((s) => s.hasPermission(PERMISSION.EMPLOYEE_UPDATE));
   const canWallet = useAuthStore((s) => s.hasPermission(PERMISSION.WALLET_WRITE));
+  const canWalletRead = useAuthStore((s) => s.hasPermission(PERMISSION.WALLET_READ));
   const canPortal = useAuthStore((s) => s.hasPermission(PERMISSION.EMPLOYEE_WRITE));
   const [query, setQuery] = useState(searchParams.get('query') ?? '');
   const [departmentCode, setDepartmentCode] = useState('');
@@ -94,9 +96,17 @@ export function EmployeesListPage() {
               {t('common.edit')}
             </Link>
           ) : null}
-          {canWallet ? (
+          {canWallet && !hasAssignedWallet(row.wallet) ? (
             <Link to={`/employees/${row.id}#employee-wallet`} className="text-[#9aa3b5] hover:underline">
               {t('employees.assignWallet')}
+            </Link>
+          ) : null}
+          {canWalletRead && hasAssignedWallet(row.wallet) ? (
+            <Link
+              to={`/wallet?employeeCode=${encodeURIComponent(row.employeeCode)}`}
+              className="text-[#9aa3b5] hover:underline"
+            >
+              {t('employees.viewWallet')}
             </Link>
           ) : null}
           {canPortal ? (

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -17,14 +17,17 @@ import { cardClass } from '@/constants/theme';
 import { PERMISSION } from '@/constants/api-endpoints';
 import { getApiErrorMessage } from '@/lib/api-client';
 import { formatDate } from '@/lib/period';
+import { isSameVerifier, WALLET_REQUEST_STATUSES, walletNextStep } from '@/lib/wallet-workflow';
 import {
   approveWalletException,
   approveWalletRequest,
   fetchWalletLockWindows,
   fetchWalletRequest,
+  fetchWalletRequestImage,
   fetchWalletRequests,
   rejectWalletRequest,
   upsertWalletLockWindow,
+  verifyWalletRequest,
 } from '@/services/wallet.service';
 import { useAuthStore } from '@/stores/auth-store';
 import type { WalletChangeRequest, WalletLockWindow } from '@/types/api';
@@ -37,15 +40,6 @@ function runOrStepUp(error: unknown, onStepUp: () => void) {
   }
   toast.error(message);
 }
-
-const WALLET_STATUSES = [
-  'PENDING_VERIFICATION',
-  'PENDING_EXCEPTION_APPROVAL',
-  'APPROVED',
-  'REJECTED',
-  'APPLIED',
-  'CANCELLED',
-];
 
 export function WalletRequestsPage() {
   const { t } = useTranslation();
@@ -106,6 +100,11 @@ export function WalletRequestsPage() {
       render: (row) => <StatusBadge value={row.status} ns="walletStatus" />,
     },
     {
+      key: 'nextStep',
+      header: t('wallet.nextStep'),
+      render: (row) => t(`wallet.next.${walletNextStep(row)}`),
+    },
+    {
       key: 'requiresException',
       header: t('wallet.exception'),
       render: (row) => (row.requiresException ? t('common.yes') : t('common.no')),
@@ -126,7 +125,7 @@ export function WalletRequestsPage() {
   return (
     <PageContainer>
       <PageHeader title={t('wallet.title')} description={t('wallet.description')} />
-      <p className={`${cardClass} mb-4 p-4 text-sm text-[#b8bfd0]`}>{t('wallet.maskedOnly')}</p>
+      <p className={`${cardClass} mb-4 p-4 text-sm text-[#b8bfd0]`}>{t('wallet.flowHint')}</p>
       <div className={`${cardClass} mb-4 flex flex-wrap gap-2 p-4`}>
         <Input
           className="max-w-[180px]"
@@ -142,7 +141,7 @@ export function WalletRequestsPage() {
           }}
         >
           <option value="">{t('common.all')}</option>
-          {WALLET_STATUSES.map((value) => (
+          {WALLET_REQUEST_STATUSES.map((value) => (
             <option key={value} value={value}>
               {t(`walletStatus.${value}`)}
             </option>
@@ -199,10 +198,14 @@ export function WalletRequestsPage() {
   );
 }
 
+type WalletAction = 'verify' | 'approve' | 'exception' | 'reject';
+
 export function WalletRequestDetailPage() {
   const { t } = useTranslation();
   const { id = '' } = useParams();
   const queryClient = useQueryClient();
+  const userId = useAuthStore((s) => s.user?.id);
+  const canVerify = useAuthStore((s) => s.hasPermission(PERMISSION.WALLET_VERIFY));
   const canApprove = useAuthStore((s) => s.hasPermission(PERMISSION.WALLET_APPROVE));
   const canException = useAuthStore((s) => s.hasPermission(PERMISSION.WALLET_EXCEPTION_APPROVE));
   const [reason, setReason] = useState('');
@@ -215,28 +218,39 @@ export function WalletRequestDetailPage() {
   });
 
   const act = useMutation({
-    mutationFn: (mode: 'approve' | 'exception' | 'reject') => {
+    mutationFn: (mode: WalletAction) => {
       if (mode === 'reject') return rejectWalletRequest(id, reason);
       if (mode === 'exception') return approveWalletException(id, reason);
+      if (mode === 'verify') return verifyWalletRequest(id, reason);
       return approveWalletRequest(id, reason);
     },
-    onSuccess: () => {
-      toast.success(t('wallet.updated'));
+    onSuccess: (_data, mode) => {
+      toast.success(mode === 'verify' ? t('wallet.verified') : t('wallet.updated'));
       void queryClient.invalidateQueries({ queryKey: ['wallet-request', id] });
       void queryClient.invalidateQueries({ queryKey: ['wallet-requests'] });
     },
-    onError: (error, mode) =>
-      runOrStepUp(error, () =>
-        setStepUp({
-          action: mode === 'exception' ? `wallet:exception:approve:${id}` : `wallet:approve:${id}`,
-          retry: () => act.mutate(mode),
-        }),
-      ),
+    onError: (error, mode) => {
+      if (mode === 'approve' || mode === 'exception') {
+        runOrStepUp(error, () =>
+          setStepUp({
+            action: mode === 'exception' ? `wallet:exception:approve:${id}` : `wallet:approve:${id}`,
+            retry: () => act.mutate(mode),
+          }),
+        );
+        return;
+      }
+      toast.error(getApiErrorMessage(error));
+    },
   });
 
   const row = detail.data;
-  const pending =
-    row?.status === 'PENDING_VERIFICATION' || row?.status === 'PENDING_EXCEPTION_APPROVAL';
+  const next = row ? walletNextStep(row) : 'done';
+  const verifierBlocked = isSameVerifier(userId, row?.hrVerifiedBy);
+  const canAct = reason.length >= 10 && !act.isPending;
+  const openStatus =
+    row?.status === 'PENDING_VERIFICATION' ||
+    row?.status === 'PENDING_APPROVAL' ||
+    row?.status === 'PENDING_EXCEPTION_APPROVAL';
 
   return (
     <PageContainer variant="narrow">
@@ -249,7 +263,7 @@ export function WalletRequestDetailPage() {
         }
       />
       {row ? (
-        <div className={`${cardClass} space-y-3 p-6 text-sm`}>
+        <div className={`${cardClass} space-y-4 p-6 text-sm`}>
           <p>
             {t('employees.code')}: <EmployeeLink id={row.employeeId} code={row.employeeCode} />
           </p>
@@ -257,40 +271,86 @@ export function WalletRequestDetailPage() {
             {t('employees.wallet')}: {row.addressMasked}
           </p>
           <p>
+            {t('wallet.previousWallet')}: {row.previousAddressMasked || '—'}
+          </p>
+          <p>
+            {t('employees.walletPlatform')}: {t(`walletPlatform.${row.platform}`, { defaultValue: row.platform })}
+          </p>
+          <p>
+            {t('employees.walletNetwork')}: {t(`walletNetwork.${row.network}`, { defaultValue: row.network })}
+          </p>
+          <p>
             {t('wallet.owner')}: {row.ownerNameMasked}
+          </p>
+          <p>
+            {t('wallet.employeeReason')}: {row.reason || '—'}
           </p>
           <p>
             {t('common.status')}: <StatusBadge value={row.status} ns="walletStatus" />
           </p>
+          {row.rejectionReason ? (
+            <p>
+              {t('common.reason')}: {row.rejectionReason}
+            </p>
+          ) : null}
           <p className="text-[#9aa3b5]">{t('wallet.maskedOnly')}</p>
-          {pending ? (
-            <div className="space-y-3 pt-2">
+
+          <div>
+            <p className="mb-2 text-[11px] uppercase text-[#9aa3b5]">{t('wallet.proposedImage')}</p>
+            <WalletRequestImagePreview requestId={row.id} hasImage={row.hasImage} revision={row.updatedAt} />
+          </div>
+
+          <ol className="space-y-2 border-t border-[#2a3040] pt-4 text-[#b8bfd0]">
+            <li>
+              1. {t('wallet.steps.verify')}
+              {row.hrVerifiedAt ? ` — ${formatDate(row.hrVerifiedAt)}` : ''}
+              {row.hrNote ? ` (${row.hrNote})` : ''}
+            </li>
+            <li>
+              2. {t('wallet.steps.consent')}
+              {row.employeeConsentedAt ? ` — ${formatDate(row.employeeConsentedAt)}` : ''}
+            </li>
+            <li>
+              3. {t('wallet.steps.approve')}
+              {row.appliedAt ? ` — ${formatDate(row.appliedAt)}` : ''}
+            </li>
+          </ol>
+          <p className="text-[#fbbf24]">{t(`wallet.next.${next}`)}</p>
+          {next === 'consent' ? <p className="text-[#fbbf24]">{t('wallet.waitingConsent')}</p> : null}
+          {verifierBlocked && next === 'approve' ? <p className="text-[#fbbf24]">{t('wallet.sodBlocked')}</p> : null}
+
+          {openStatus ? (
+            <div className="space-y-3 border-t border-[#2a3040] pt-4">
               <Label>{t('common.reason')}</Label>
               <Input value={reason} onChange={(e) => setReason(e.target.value)} />
               <div className="flex flex-wrap gap-2">
-                {canApprove && row.status === 'PENDING_VERIFICATION' && !row.requiresException ? (
-                  <Button disabled={reason.length < 10 || act.isPending} onClick={() => act.mutate('approve')}>
+                {canVerify && row.status === 'PENDING_VERIFICATION' ? (
+                  <Button disabled={!canAct} onClick={() => act.mutate('verify')}>
+                    {t('wallet.verifyContact')}
+                  </Button>
+                ) : null}
+                {canApprove && row.status === 'PENDING_APPROVAL' && !row.requiresException ? (
+                  <Button
+                    disabled={!canAct || !row.employeeConsentedAt || verifierBlocked}
+                    onClick={() => act.mutate('approve')}
+                  >
                     {t('approvals.approve')}
                   </Button>
                 ) : null}
-                {canException && row.requiresException ? (
-                  <Button
-                    disabled={reason.length < 10 || act.isPending}
-                    onClick={() => act.mutate('exception')}
-                  >
+                {canException && row.requiresException && row.status === 'PENDING_EXCEPTION_APPROVAL' ? (
+                  <Button disabled={!canAct} onClick={() => act.mutate('exception')}>
                     {t('wallet.approveException')}
                   </Button>
                 ) : null}
                 {canApprove ? (
-                  <Button
-                    variant="destructive"
-                    disabled={reason.length < 10 || act.isPending}
-                    onClick={() => act.mutate('reject')}
-                  >
+                  <Button variant="destructive" disabled={!canAct} onClick={() => act.mutate('reject')}>
                     {t('approvals.reject')}
                   </Button>
                 ) : null}
               </div>
+              {canApprove && row.status === 'PENDING_APPROVAL' && !row.employeeConsentedAt ? (
+                <p className="text-xs text-[#fbbf24]">{t('wallet.consentMissing')}</p>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -304,5 +364,56 @@ export function WalletRequestDetailPage() {
         onVerified={() => stepUp?.retry()}
       />
     </PageContainer>
+  );
+}
+
+function WalletRequestImagePreview({
+  requestId,
+  hasImage,
+  revision,
+}: {
+  requestId: string;
+  hasImage: boolean;
+  revision?: string | null;
+}) {
+  const { t } = useTranslation();
+  const [url, setUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!hasImage) {
+      setUrl(null);
+      return;
+    }
+    let objectUrl: string | null = null;
+    let cancelled = false;
+    void fetchWalletRequestImage(requestId)
+      .then((blob) => {
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setUrl(objectUrl);
+      })
+      .catch(() => {
+        if (!cancelled) setUrl(null);
+      });
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [requestId, hasImage, revision]);
+
+  if (!hasImage) {
+    return <p className="text-sm text-[#b8bfd0]">{t('employees.walletImageMissing')}</p>;
+  }
+
+  if (!url) {
+    return <p className="text-sm text-[#b8bfd0]">{t('common.loading')}</p>;
+  }
+
+  return (
+    <img
+      src={url}
+      alt={t('employees.walletImage')}
+      className="max-h-56 w-full rounded-md border border-[#2a3040] object-contain bg-[#12151c]"
+    />
   );
 }

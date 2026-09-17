@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { Download } from 'lucide-react';
@@ -121,8 +121,14 @@ export function ImportsListPage() {
 export function ImportCreatePage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const [dataType, setDataType] = useState<DataType>('ATTENDANCE');
-  const [period, setPeriod] = useState(previousPeriod());
+  const [searchParams] = useSearchParams();
+  const initialType = (searchParams.get('dataType') as DataType | null) ?? 'ATTENDANCE';
+  const [dataType, setDataType] = useState<DataType>(
+    initialType === 'PENALTY' || initialType === 'PAYROLL' || initialType === 'ATTENDANCE'
+      ? initialType
+      : 'ATTENDANCE',
+  );
+  const [period, setPeriod] = useState(searchParams.get('period') || previousPeriod());
   const [file, setFile] = useState<File | null>(null);
 
   const create = useMutation({

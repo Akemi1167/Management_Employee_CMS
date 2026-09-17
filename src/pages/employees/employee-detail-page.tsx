@@ -3,29 +3,41 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { CalendarCheck, ClipboardList, CreditCard, KeyRound, Wallet } from 'lucide-react';
+import { CalendarCheck, ClipboardList, CreditCard, KeyRound, Pencil, Wallet } from 'lucide-react';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { DataTable, type Column } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { StepUpDialog } from '@/components/shared/step-up-dialog';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select } from '@/components/ui/select';
 import { cardClass, textSubtle } from '@/constants/theme';
 import { PERMISSION } from '@/constants/api-endpoints';
 import { getApiErrorMessage, moneyText } from '@/lib/api-client';
-import { formatDate, formatDay } from '@/lib/period';
+import { dateInputToIso, formatDate, formatDay, toDateInput } from '@/lib/period';
 import {
   fetchEmployee,
+  fetchEmployeeWalletImage,
   provisionEmployeePortal,
   resetEmployeePortalPassword,
   setEmployeePortalPassword,
+  setEmployeeWallet,
+  updateEmployee,
+  WALLET_IMAGE_ACCEPT,
+  WALLET_IMAGE_MAX_BYTES,
+  WALLET_NETWORKS,
+  WALLET_PLATFORMS,
+  type WalletNetwork,
+  type WalletPlatform,
 } from '@/services/employee.service';
 import { fetchAttendance, fetchPayroll, fetchPenalties } from '@/services/hr-records.service';
 import { useAuthStore } from '@/stores/auth-store';
 import type {
   AttendanceRecord,
+  Employee,
   EmployeePortalAccount,
   Paginated,
   PayrollRecord,
@@ -107,12 +119,30 @@ export function EmployeeDetailPage() {
         description={data?.employeeCode}
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" asChild>
-              <a href="#portal-account">
-                <KeyRound className="h-4 w-4" />
-                {t('employees.setPortalPassword')}
-              </a>
-            </Button>
+            {has(PERMISSION.EMPLOYEE_UPDATE) ? (
+              <Button variant="outline" asChild>
+                <a href="#employee-profile">
+                  <Pencil className="h-4 w-4" />
+                  {t('common.edit')}
+                </a>
+              </Button>
+            ) : null}
+            {has(PERMISSION.WALLET_WRITE) ? (
+              <Button variant="outline" asChild>
+                <a href="#employee-wallet">
+                  <Wallet className="h-4 w-4" />
+                  {t('employees.assignWallet')}
+                </a>
+              </Button>
+            ) : null}
+            {has(PERMISSION.EMPLOYEE_WRITE) ? (
+              <Button variant="outline" asChild>
+                <a href="#portal-account">
+                  <KeyRound className="h-4 w-4" />
+                  {t('employees.setPortalPassword')}
+                </a>
+              </Button>
+            ) : null}
             <Button variant="outline" asChild>
               <Link to="/employees">{t('common.back')}</Link>
             </Button>
@@ -123,25 +153,9 @@ export function EmployeeDetailPage() {
         <p className="text-sm text-[#b8bfd0]">{t('common.loading')}</p>
       ) : (
         <>
-          <div className={`${cardClass} mb-4 grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-3`}>
-            <Field label={t('employees.code')} value={data.employeeCode} />
-            <Field label={t('employees.name')} value={data.fullName} />
-            <Field label={t('employees.department')} value={data.departmentCode} />
-            <Field label={t('employees.position')} value={data.position ?? '—'} />
-            <div>
-              <p className="text-[11px] uppercase text-[#9aa3b5]">{t('common.status')}</p>
-              <StatusBadge value={data.employmentStatus} ns="employment" />
-            </div>
-            <div>
-              <p className="text-[11px] uppercase text-[#9aa3b5]">LARK</p>
-              <StatusBadge value={data.larkSyncStatus} ns="larkStatus" />
-            </div>
-            <Field label={t('employees.hiredAt')} value={formatDay(data.hiredAt)} />
-            <Field label={t('employees.terminatedAt')} value={formatDay(data.terminatedAt)} />
-            <Field label={t('employees.wallet')} value={data.wallet.addressMasked || '—'} />
-            <Field label={t('employees.walletPlatform')} value={data.wallet.platform || '—'} />
-            <Field label={t('employees.walletNetwork')} value={data.wallet.network || '—'} />
-          </div>
+          <EmployeeProfileCard employee={data} />
+
+          <WalletAssignCard employeeId={id} wallet={data.wallet} />
 
           <PortalAccountCard employeeId={id} account={data.portalAccount ?? null} />
 
@@ -193,6 +207,444 @@ function Field({ label, value }: { label: string; value: string }) {
     <div>
       <p className="text-[11px] uppercase text-[#9aa3b5]">{label}</p>
       <p className="text-sm">{value}</p>
+    </div>
+  );
+}
+
+function EmployeeProfileCard({ employee }: { employee: Employee }) {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const canUpdate = useAuthStore((s) => s.hasPermission(PERMISSION.EMPLOYEE_UPDATE));
+  const [fullName, setFullName] = useState(employee.fullName);
+  const [workEmail, setWorkEmail] = useState(employee.workEmail ?? '');
+  const [departmentCode, setDepartmentCode] = useState(employee.departmentCode);
+  const [position, setPosition] = useState(employee.position ?? '');
+  const [hiredAt, setHiredAt] = useState(toDateInput(employee.hiredAt));
+  const [employmentStatus, setEmploymentStatus] = useState(employee.employmentStatus);
+  const [terminatedAt, setTerminatedAt] = useState(toDateInput(employee.terminatedAt));
+  const [reason, setReason] = useState('');
+  const [confirmKind, setConfirmKind] = useState<'disable' | 'enable' | null>(null);
+  const [stepUp, setStepUp] = useState<{ action: string; retry: () => void } | null>(null);
+
+  useEffect(() => {
+    setFullName(employee.fullName);
+    setWorkEmail(employee.workEmail ?? '');
+    setDepartmentCode(employee.departmentCode);
+    setPosition(employee.position ?? '');
+    setHiredAt(toDateInput(employee.hiredAt));
+    setEmploymentStatus(employee.employmentStatus);
+    setTerminatedAt(toDateInput(employee.terminatedAt));
+  }, [employee]);
+
+  useEffect(() => {
+    if (window.location.hash === '#employee-profile') {
+      document.getElementById('employee-profile')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, []);
+
+  const portalStatus = employee.portalAccount?.status;
+  const hiredIso = dateInputToIso(hiredAt);
+  const terminatedIso = employmentStatus === 'TERMINATED' ? dateInputToIso(terminatedAt) : undefined;
+  const invalidTerminatedDate =
+    employmentStatus === 'TERMINATED' && Boolean(terminatedAt) && Boolean(hiredAt) && terminatedAt < hiredAt;
+
+  const canSubmit =
+    canUpdate &&
+    fullName.trim().length > 0 &&
+    departmentCode.trim().length > 0 &&
+    hiredAt.length === 10 &&
+    reason.trim().length >= 10 &&
+    !invalidTerminatedDate;
+
+  const payload = () => {
+    const body: Parameters<typeof updateEmployee>[1] = {
+      fullName: fullName.trim(),
+      workEmail: workEmail.trim() ? workEmail.trim() : null,
+      departmentCode: departmentCode.trim(),
+      position: position.trim() ? position.trim() : null,
+      hiredAt: hiredIso,
+      employmentStatus,
+      reason: reason.trim(),
+    };
+    if (employmentStatus === 'TERMINATED') {
+      if (terminatedIso) body.terminatedAt = terminatedIso;
+    } else {
+      body.terminatedAt = null;
+    }
+    return body;
+  };
+
+  const save = useMutation({
+    mutationFn: () => updateEmployee(employee.id, payload()),
+    onSuccess: () => {
+      setReason('');
+      setConfirmKind(null);
+      toast.success(t('employees.profileSaved'));
+      void queryClient.invalidateQueries({ queryKey: ['employee', employee.id] });
+    },
+    onError: (error) =>
+      runOrStepUp(error, () =>
+        setStepUp({ action: `employee:update:${employee.id}`, retry: () => save.mutate() }),
+      ),
+  });
+
+  const requestSave = () => {
+    if (!canSubmit) return;
+    const disabling =
+      (employmentStatus === 'TERMINATED' || employmentStatus === 'SUSPENDED') &&
+      employmentStatus !== employee.employmentStatus;
+    const enabling =
+      (employmentStatus === 'ACTIVE' || employmentStatus === 'ON_LEAVE') &&
+      portalStatus === 'DISABLED';
+    if (disabling) {
+      setConfirmKind('disable');
+      return;
+    }
+    if (enabling) {
+      setConfirmKind('enable');
+      return;
+    }
+    save.mutate();
+  };
+
+  return (
+    <div id="employee-profile" className={`${cardClass} mb-4 scroll-mt-4 p-5`}>
+      <h2 className="mb-3 text-sm font-semibold text-[#eef0f6]">{t('employees.detail')}</h2>
+      <div className="mb-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Field label={t('employees.code')} value={employee.employeeCode} />
+        <Field label={t('employees.workEmail')} value={employee.workEmail || '—'} />
+        <div>
+          <p className="text-[11px] uppercase text-[#9aa3b5]">{t('common.status')}</p>
+          <StatusBadge value={employee.employmentStatus} ns="employment" />
+        </div>
+        <div>
+          <p className="text-[11px] uppercase text-[#9aa3b5]">LARK</p>
+          <StatusBadge value={employee.larkSyncStatus} ns="larkStatus" />
+        </div>
+        <Field label={t('employees.hiredAt')} value={formatDay(employee.hiredAt)} />
+        <Field label={t('employees.terminatedAt')} value={formatDay(employee.terminatedAt)} />
+      </div>
+      {canUpdate ? (
+        <div className="space-y-3 border-t border-[#2a3040] pt-4">
+          <p className={`text-xs ${textSubtle}`}>{t('employees.profileHint')}</p>
+          {portalStatus === 'LOCKED' ? (
+            <p className="text-sm text-[#fbbf24]">{t('employees.portalLockedHint')}</p>
+          ) : null}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label>{t('employees.name')}</Label>
+              <Input value={fullName} onChange={(e) => setFullName(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('employees.workEmail')}</Label>
+              <Input type="email" value={workEmail} onChange={(e) => setWorkEmail(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('employees.department')}</Label>
+              <Input value={departmentCode} onChange={(e) => setDepartmentCode(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('employees.position')}</Label>
+              <Input value={position} onChange={(e) => setPosition(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('employees.hiredAt')}</Label>
+              <Input type="date" value={hiredAt} onChange={(e) => setHiredAt(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('common.status')}</Label>
+              <Select value={employmentStatus} onChange={(e) => setEmploymentStatus(e.target.value)}>
+                <option value="ACTIVE">{t('employment.ACTIVE')}</option>
+                <option value="ON_LEAVE">{t('employment.ON_LEAVE')}</option>
+                <option value="SUSPENDED">{t('employment.SUSPENDED')}</option>
+                <option value="TERMINATED">{t('employment.TERMINATED')}</option>
+              </Select>
+            </div>
+            {employmentStatus === 'TERMINATED' ? (
+              <div className="space-y-1.5">
+                <Label>{t('employees.terminatedAt')}</Label>
+                <Input type="date" value={terminatedAt} onChange={(e) => setTerminatedAt(e.target.value)} />
+                <p className={`text-[10px] ${textSubtle}`}>{t('employees.terminatedAtHint')}</p>
+              </div>
+            ) : null}
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label>{t('employees.portalReason')}</Label>
+              <Input value={reason} onChange={(e) => setReason(e.target.value)} />
+            </div>
+          </div>
+          {invalidTerminatedDate ? (
+            <p className="text-[10px] text-[#fbbf24]">{t('employees.terminatedBeforeHired')}</p>
+          ) : null}
+          <Button disabled={!canSubmit || save.isPending} onClick={requestSave}>
+            <Pencil className="h-4 w-4" />
+            {t('employees.saveProfile')}
+          </Button>
+        </div>
+      ) : null}
+      <ConfirmDialog
+        open={confirmKind === 'disable'}
+        onClose={() => setConfirmKind(null)}
+        onConfirm={() => save.mutate()}
+        title={t('employees.confirmDisableTitle')}
+        description={t('employees.confirmDisableDescription')}
+        destructive
+        loading={save.isPending}
+      />
+      <ConfirmDialog
+        open={confirmKind === 'enable'}
+        onClose={() => setConfirmKind(null)}
+        onConfirm={() => save.mutate()}
+        title={t('employees.confirmEnableTitle')}
+        description={t('employees.confirmEnableDescription')}
+        loading={save.isPending}
+      />
+      <StepUpDialog
+        open={Boolean(stepUp)}
+        action={stepUp?.action ?? ''}
+        onClose={() => setStepUp(null)}
+        onVerified={() => stepUp?.retry()}
+      />
+    </div>
+  );
+}
+
+function isAllowedWalletImage(file: File) {
+  if (file.size <= 0 || file.size > WALLET_IMAGE_MAX_BYTES) return false;
+  if (/image\/(jpeg|png|webp)/i.test(file.type)) return true;
+  return /\.(jpe?g|png|webp)$/i.test(file.name);
+}
+
+function WalletImagePreview({
+  employeeId,
+  hasImage,
+  revision,
+}: {
+  employeeId: string;
+  hasImage: boolean;
+  revision?: string | null;
+}) {
+  const { t } = useTranslation();
+  const [url, setUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!hasImage) {
+      setUrl(null);
+      return;
+    }
+    let objectUrl: string | null = null;
+    let cancelled = false;
+    void fetchEmployeeWalletImage(employeeId)
+      .then((blob) => {
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setUrl(objectUrl);
+      })
+      .catch(() => {
+        if (!cancelled) setUrl(null);
+      });
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [employeeId, hasImage, revision]);
+
+  if (!hasImage) {
+    return <p className="text-sm text-[#b8bfd0]">{t('employees.walletImageMissing')}</p>;
+  }
+
+  if (!url) {
+    return <p className="text-sm text-[#b8bfd0]">{t('common.loading')}</p>;
+  }
+
+  return (
+    <img
+      src={url}
+      alt={t('employees.walletImage')}
+      className="max-h-56 w-full rounded-md border border-[#2a3040] object-contain bg-[#12151c]"
+    />
+  );
+}
+
+function WalletAssignCard({
+  employeeId,
+  wallet,
+}: {
+  employeeId: string;
+  wallet: Employee['wallet'];
+}) {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const canWrite = useAuthStore((s) => s.hasPermission(PERMISSION.WALLET_WRITE));
+  const [address, setAddress] = useState('');
+  const [platform, setPlatform] = useState<WalletPlatform>('BINANCE');
+  const [network, setNetwork] = useState<WalletNetwork>('BEP20');
+  const [ownerName, setOwnerName] = useState('');
+  const [reason, setReason] = useState('');
+  const [image, setImage] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [stepUp, setStepUp] = useState<{ action: string; retry: () => void } | null>(null);
+
+  useEffect(() => {
+    if (window.location.hash === '#employee-wallet') {
+      document.getElementById('employee-wallet')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!image) {
+      setPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(image);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [image]);
+
+  const canSubmit =
+    canWrite &&
+    address.replace(/\s+/g, '').trim().length >= 8 &&
+    reason.trim().length >= 10 &&
+    Boolean(image) &&
+    isAllowedWalletImage(image!);
+
+  const save = useMutation({
+    mutationFn: () =>
+      setEmployeeWallet(employeeId, {
+        address: address.replace(/\s+/g, '').trim(),
+        platform,
+        network,
+        ownerName,
+        reason: reason.trim(),
+        image: image!,
+      }),
+    onSuccess: () => {
+      setAddress('');
+      setOwnerName('');
+      setReason('');
+      setImage(null);
+      toast.success(t('employees.walletAssigned'));
+      void queryClient.invalidateQueries({ queryKey: ['employee', employeeId] });
+    },
+    onError: (error) =>
+      runOrStepUp(error, () =>
+        setStepUp({ action: `employee:wallet:${employeeId}`, retry: () => save.mutate() }),
+      ),
+  });
+
+  return (
+    <div id="employee-wallet" className={`${cardClass} mb-4 scroll-mt-4 p-5`}>
+      <h2 className="mb-1 flex items-center gap-2 text-sm font-semibold text-[#eef0f6]">
+        <Wallet className="h-4 w-4 text-[#4ade80]" />
+        {t('employees.walletTitle')}
+      </h2>
+      <p className="mb-4 text-xs text-[#9aa3b5]">{t('employees.walletHint')}</p>
+      <div className="mb-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label={t('employees.wallet')} value={wallet.addressMasked || '—'} />
+          <Field
+            label={t('employees.walletPlatform')}
+            value={wallet.platform ? t(`walletPlatform.${wallet.platform}`, { defaultValue: wallet.platform }) : '—'}
+          />
+          <Field
+            label={t('employees.walletNetwork')}
+            value={wallet.network ? t(`walletNetwork.${wallet.network}`, { defaultValue: wallet.network }) : '—'}
+          />
+          <Field label={t('wallet.owner')} value={wallet.ownerNameMasked || '—'} />
+          <Field label={t('employees.walletEffectiveAt')} value={formatDate(wallet.effectiveAt)} />
+          <Field
+            label={t('employees.walletSource')}
+            value={wallet.source ? t(`walletSource.${wallet.source}`, { defaultValue: wallet.source }) : '—'}
+          />
+        </div>
+        <div>
+          <p className="mb-2 text-[11px] uppercase text-[#9aa3b5]">{t('employees.walletImage')}</p>
+          <WalletImagePreview
+            employeeId={employeeId}
+            hasImage={Boolean(wallet.hasImage)}
+            revision={wallet.effectiveAt}
+          />
+        </div>
+      </div>
+      {canWrite ? (
+        <div className="space-y-3 border-t border-[#2a3040] pt-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label>{t('employees.walletAddress')}</Label>
+              <Input
+                autoComplete="off"
+                spellCheck={false}
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('employees.walletPlatform')}</Label>
+              <Select value={platform} onChange={(e) => setPlatform(e.target.value as WalletPlatform)}>
+                {WALLET_PLATFORMS.map((value) => (
+                  <option key={value} value={value}>
+                    {t(`walletPlatform.${value}`)}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('employees.walletNetwork')}</Label>
+              <Select value={network} onChange={(e) => setNetwork(e.target.value as WalletNetwork)}>
+                {WALLET_NETWORKS.map((value) => (
+                  <option key={value} value={value}>
+                    {t(`walletNetwork.${value}`)}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>
+                {t('employees.walletOwnerName')} ({t('common.optional')})
+              </Label>
+              <Input value={ownerName} onChange={(e) => setOwnerName(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('employees.walletImage')}</Label>
+              <Input
+                type="file"
+                accept={WALLET_IMAGE_ACCEPT}
+                onChange={(e) => setImage(e.target.files?.[0] ?? null)}
+              />
+              <p className={`text-[10px] ${textSubtle}`}>{t('employees.walletImageHint')}</p>
+            </div>
+          </div>
+          {previewUrl ? (
+            <img
+              src={previewUrl}
+              alt={t('employees.walletImage')}
+              className="max-h-40 rounded-md border border-[#2a3040] object-contain bg-[#12151c]"
+            />
+          ) : null}
+          {image && !isAllowedWalletImage(image) ? (
+            <p className="text-[10px] text-[#fbbf24]">{t('employees.walletImageHint')}</p>
+          ) : null}
+          <div className="space-y-1.5">
+            <Label>{t('employees.portalReason')}</Label>
+            <Input
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder={t('employees.portalReason')}
+            />
+          </div>
+          <Button disabled={!canSubmit || save.isPending} onClick={() => save.mutate()}>
+            <Wallet className="h-4 w-4" />
+            {t('employees.assignWallet')}
+          </Button>
+        </div>
+      ) : (
+        <p className="text-sm text-[#fbbf24]">{t('employees.walletWriteHint')}</p>
+      )}
+      <StepUpDialog
+        open={Boolean(stepUp)}
+        action={stepUp?.action ?? ''}
+        onClose={() => setStepUp(null)}
+        onVerified={() => stepUp?.retry()}
+      />
     </div>
   );
 }

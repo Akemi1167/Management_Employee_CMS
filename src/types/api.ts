@@ -132,6 +132,7 @@ export interface Employee {
   id: string;
   employeeCode: string;
   fullName: string;
+  workEmail: string | null;
   departmentCode: string;
   position: string | null;
   employmentStatus: string;
@@ -142,6 +143,10 @@ export interface Employee {
     addressMasked: string | null;
     platform: string | null;
     network: string | null;
+    ownerNameMasked: string | null;
+    effectiveAt: string | null;
+    source: string | null;
+    hasImage: boolean;
   };
   portalAccount?: EmployeePortalAccount | null;
 }
@@ -301,6 +306,7 @@ export interface DataPeriod {
   recordCount: number;
   publishedAt: string | null;
   lockedAt: string | null;
+  isLocked?: boolean;
 }
 
 export interface ComplaintMessage {
@@ -310,6 +316,19 @@ export interface ComplaintMessage {
   content: string;
   internalOnly: boolean;
   createdAt: string | null;
+}
+
+export interface ComplaintCorrection {
+  cannotPatchPublished: boolean;
+  instruction: string;
+  listPath: string;
+  patchPath: string;
+  patchPermission: string;
+  query: {
+    period: string;
+    employeeId: string;
+    source: 'staging' | 'published';
+  };
 }
 
 export interface Complaint {
@@ -338,6 +357,7 @@ export interface Complaint {
   resolvedBy: string | null;
   resolvedAt: string | null;
   adjustmentImportSessionId: string | null;
+  correction?: ComplaintCorrection | null;
   createdAt: string | null;
   updatedAt: string | null;
 }

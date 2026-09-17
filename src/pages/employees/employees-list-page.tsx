@@ -24,13 +24,16 @@ export function EmployeesListPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const canImport = useAuthStore((s) => s.hasPermission(PERMISSION.EMPLOYEE_WRITE));
+  const canUpdate = useAuthStore((s) => s.hasPermission(PERMISSION.EMPLOYEE_UPDATE));
+  const canWallet = useAuthStore((s) => s.hasPermission(PERMISSION.WALLET_WRITE));
+  const canPortal = useAuthStore((s) => s.hasPermission(PERMISSION.EMPLOYEE_WRITE));
   const [query, setQuery] = useState(searchParams.get('query') ?? '');
   const [departmentCode, setDepartmentCode] = useState('');
-  const [employmentStatus, setEmploymentStatus] = useState('');
+  const [employmentStatus, setEmploymentStatus] = useState(searchParams.get('employmentStatus') ?? '');
   const [applied, setApplied] = useState({
     query: searchParams.get('query') ?? '',
     departmentCode: '',
-    employmentStatus: '',
+    employmentStatus: searchParams.get('employmentStatus') ?? '',
   });
   const [page, setPage] = useState(1);
 
@@ -46,38 +49,62 @@ export function EmployeesListPage() {
       }),
   });
 
+  const applyFilters = (status = employmentStatus) => {
+    setPage(1);
+    setEmploymentStatus(status);
+    setApplied({
+      query: query.trim(),
+      departmentCode: departmentCode.trim(),
+      employmentStatus: status,
+    });
+  };
+
   const columns: Column<Employee>[] = [
     { key: 'employeeCode', header: t('employees.code') },
     { key: 'fullName', header: t('employees.name') },
+    { key: 'workEmail', header: t('employees.workEmail'), render: (row) => row.workEmail || '—' },
     { key: 'departmentCode', header: t('employees.department') },
-    { key: 'position', header: t('employees.position') },
+    { key: 'position', header: t('employees.position'), render: (row) => row.position || '—' },
     {
       key: 'employmentStatus',
       header: t('common.status'),
       render: (row) => <StatusBadge value={row.employmentStatus} ns="employment" />,
     },
-    {
-      key: 'larkSyncStatus',
-      header: 'LARK',
-      render: (row) => <StatusBadge value={row.larkSyncStatus} ns="larkStatus" />,
-    },
     { key: 'hiredAt', header: t('employees.hiredAt'), render: (row) => formatDay(row.hiredAt) },
+    { key: 'terminatedAt', header: t('employees.terminatedAt'), render: (row) => formatDay(row.terminatedAt) },
     {
       key: 'wallet',
-      header: t('employees.wallet'),
-      render: (row) => row.wallet.addressMasked || '—',
+      header: t('employees.walletColumn'),
+      render: (row) => (
+        <span>
+          {row.wallet?.addressMasked || '—'}
+          {row.wallet?.hasImage ? (
+            <span className="ml-2 text-[10px] text-[#4ade80]">{t('employees.walletHasImage')}</span>
+          ) : null}
+        </span>
+      ),
     },
     {
       key: 'actions',
       header: t('common.actions'),
       render: (row) => (
-        <Link
-          to={`/employees/${row.id}#portal-account`}
-          onClick={(e) => e.stopPropagation()}
-          className="text-[#4ade80] hover:underline"
-        >
-          {t('employees.setPortalPassword')}
-        </Link>
+        <div className="flex flex-col gap-1" onClick={(e) => e.stopPropagation()}>
+          {canUpdate ? (
+            <Link to={`/employees/${row.id}#employee-profile`} className="text-[#4ade80] hover:underline">
+              {t('common.edit')}
+            </Link>
+          ) : null}
+          {canWallet ? (
+            <Link to={`/employees/${row.id}#employee-wallet`} className="text-[#9aa3b5] hover:underline">
+              {t('employees.assignWallet')}
+            </Link>
+          ) : null}
+          {canPortal ? (
+            <Link to={`/employees/${row.id}#portal-account`} className="text-[#9aa3b5] hover:underline">
+              {t('employees.setPortalPassword')}
+            </Link>
+          ) : null}
+        </div>
       ),
     },
   ];
@@ -115,14 +142,12 @@ export function EmployeesListPage() {
           <option value="SUSPENDED">{t('employment.SUSPENDED')}</option>
           <option value="TERMINATED">{t('employment.TERMINATED')}</option>
         </Select>
-        <Button
-          onClick={() => {
-            setPage(1);
-            setApplied({ query: query.trim(), departmentCode: departmentCode.trim(), employmentStatus });
-          }}
-        >
+        <Button onClick={() => applyFilters()}>
           <Search className="h-4 w-4" />
           {t('common.search')}
+        </Button>
+        <Button variant="outline" onClick={() => applyFilters('TERMINATED')}>
+          {t('employees.filterTerminated')}
         </Button>
       </div>
       <DataTable

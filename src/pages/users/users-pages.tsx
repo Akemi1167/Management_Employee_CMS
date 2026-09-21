@@ -1,8 +1,20 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import {
+  Check,
+  ChevronDown,
+  ClipboardList,
+  FileUp,
+  Lock,
+  ScrollText,
+  ShieldAlert,
+  ShieldCheck,
+  Users,
+  Wallet,
+} from 'lucide-react';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { DataTable, type Column } from '@/components/shared/data-table';
@@ -13,9 +25,20 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
-import { cardClass } from '@/constants/theme';
-import { ADMIN_ROLES, ALL_PERMISSIONS, PERMISSION } from '@/constants/api-endpoints';
+import { Switch } from '@/components/ui/switch';
+import { cardClass, sectionAccent, textSubtle } from '@/constants/theme';
+import { ADMIN_ROLES, PERMISSION } from '@/constants/api-endpoints';
+import {
+  extraPermissionChoices,
+  findPermissionConflicts,
+  permissionI18nKey,
+  PERMISSION_GROUPS,
+  permissionsFromRoles,
+  ROLE_PERMISSIONS,
+  type AdminRole,
+} from '@/constants/rbac';
 import { getApiErrorMessage } from '@/lib/api-client';
+import { cn } from '@/lib/utils';
 import { formatDate } from '@/lib/period';
 import {
   createUser,
@@ -111,12 +134,27 @@ export function UsersListPage() {
   );
 }
 
+const ROLE_ICONS: Record<AdminRole, typeof FileUp> = {
+  data_entry: FileUp,
+  approver: ShieldCheck,
+  publisher: Lock,
+  complaint_operator: ClipboardList,
+  wallet_approver: Wallet,
+  auditor: ScrollText,
+  system_admin: Users,
+};
+
+function permissionLabel(t: (key: string) => string, code: string) {
+  return t(`permission.${permissionI18nKey(code)}`);
+}
+
 function UserForm({ existing }: { existing?: AdminUser }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const currentUserId = useAuthStore((s) => s.user?.id);
-  const isSelf = Boolean(existing && currentUserId === existing.id);
+  const currentUser = useAuthStore((s) => s.user);
+  const isSelf = Boolean(existing && currentUser?.id === existing.id);
+  const actorIsAdmin = Boolean(currentUser?.roles.includes('system_admin'));
   const [username, setUsername] = useState(existing?.username ?? '');
   const [email, setEmail] = useState(existing?.email ?? '');
   const [fullName, setFullName] = useState(existing?.fullName ?? '');
@@ -128,18 +166,53 @@ function UserForm({ existing }: { existing?: AdminUser }) {
   const [enableReason, setEnableReason] = useState('');
   const [resetReason, setResetReason] = useState('');
   const [tempPassword, setTempPassword] = useState('');
+  const [showExtras, setShowExtras] = useState(() => (existing?.extraPermissions.length ?? 0) > 0);
+  const [showEffective, setShowEffective] = useState(false);
   const [stepUp, setStepUp] = useState<{ action: string; retry: () => void } | null>(null);
+
+  const roleGranted = useMemo(() => permissionsFromRoles(roles), [roles]);
+  const extraChoices = useMemo(
+    () => extraPermissionChoices(roleGranted, currentUser?.permissions ?? [], extraPermissions),
+    [roleGranted, currentUser?.permissions, extraPermissions],
+  );
+  const extraGroups = useMemo(
+    () =>
+      PERMISSION_GROUPS.map((group) => ({
+        ...group,
+        permissions: group.permissions.filter((permission) => extraChoices.includes(permission)),
+      })).filter((group) => group.permissions.length > 0),
+    [extraChoices],
+  );
+  const extrasToSave = useMemo(
+    () => extraPermissions.filter((permission) => !roleGranted.has(permission)),
+    [extraPermissions, roleGranted],
+  );
+  const effectivePermissions = useMemo(
+    () => [...new Set([...roleGranted, ...extrasToSave])],
+    [roleGranted, extrasToSave],
+  );
+  const conflicts = useMemo(
+    () => (roles.includes('system_admin') ? [] : findPermissionConflicts(effectivePermissions)),
+    [roles, effectivePermissions],
+  );
+  const lockedBySelf = isSelf;
 
   const save = useMutation({
     mutationFn: async () => {
       if (existing && isSelf) {
         return updateUser(existing.id, { email, fullName });
       }
+      if (roles.length === 0) {
+        throw new Error(t('users.rolesRequired'));
+      }
+      if (conflicts.length > 0) {
+        throw new Error(t('users.saveBlockedConflict'));
+      }
       const body = {
         email,
         fullName,
         roles,
-        extraPermissions,
+        extraPermissions: extrasToSave,
         dataScope: {
           allEmployees,
           departmentCodes: departments
@@ -207,11 +280,18 @@ function UserForm({ existing }: { existing?: AdminUser }) {
       ),
   });
 
-  const toggleRole = (role: string) => {
-    setRoles((prev) => (prev.includes(role) ? prev.filter((item) => item !== role) : [...prev, role]));
+  const toggleRole = (role: AdminRole) => {
+    if (lockedBySelf) return;
+    if (role === 'system_admin' && !actorIsAdmin) return;
+    setRoles((prev) => {
+      if (prev.includes(role)) return prev.filter((item) => item !== role);
+      if (role === 'system_admin') return ['system_admin'];
+      return [...prev.filter((item) => item !== 'system_admin'), role];
+    });
   };
 
   const togglePermission = (permission: string) => {
+    if (lockedBySelf) return;
     setExtraPermissions((prev) =>
       prev.includes(permission) ? prev.filter((item) => item !== permission) : [...prev, permission],
     );
@@ -220,78 +300,289 @@ function UserForm({ existing }: { existing?: AdminUser }) {
   return (
     <>
       <form
-        className={`${cardClass} space-y-4 p-6`}
+        className="space-y-4"
         onSubmit={(e) => {
           e.preventDefault();
           save.mutate();
         }}
       >
-        {!existing ? (
-          <div className="space-y-1.5">
-            <Label>{t('users.username')}</Label>
-            <Input value={username} onChange={(e) => setUsername(e.target.value)} required />
+        {lockedBySelf ? (
+          <div className="flex gap-3 rounded-xl border border-[#fbbf24]/35 bg-[#fbbf24]/10 px-4 py-3 text-sm text-[#fbbf24]">
+            <ShieldAlert className="mt-0.5 size-4 shrink-0" />
+            <p>{t('users.cannotEditSelfBanner')}</p>
           </div>
         ) : null}
-        <div className="space-y-1.5">
-          <Label>{t('users.fullName')}</Label>
-          <Input value={fullName} onChange={(e) => setFullName(e.target.value)} required />
-        </div>
-        <div className="space-y-1.5">
-          <Label>{t('users.email')}</Label>
-          <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-        </div>
-        <div className="space-y-1.5">
-          <Label>{t('users.roles')}</Label>
-          {isSelf ? <p className="text-xs text-[#fbbf24]">{t('users.cannotEditSelf')}</p> : null}
-          <div className="flex flex-wrap gap-2">
-            {ADMIN_ROLES.map((role) => (
-              <label key={role} className="flex items-center gap-1 text-sm">
-                <input
-                  type="checkbox"
-                  checked={roles.includes(role)}
-                  disabled={isSelf}
-                  onChange={() => toggleRole(role)}
-                />
-                {t(`roles.${role}`)}
-              </label>
-            ))}
+
+        <section className={`${cardClass} space-y-4 p-6`}>
+          <h2 className="flex items-center gap-2.5 text-sm font-semibold text-[#eef0f6]">
+            <span className={sectionAccent} />
+            {t('users.accountSection')}
+          </h2>
+          {!existing ? (
+            <div className="space-y-1.5">
+              <Label htmlFor="user-username">{t('users.username')}</Label>
+              <Input
+                id="user-username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
+                autoComplete="off"
+              />
+            </div>
+          ) : null}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="user-fullName">{t('users.fullName')}</Label>
+              <Input
+                id="user-fullName"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="user-email">{t('users.email')}</Label>
+              <Input
+                id="user-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
           </div>
-        </div>
-        <div className="space-y-1.5">
-          <Label>{t('users.extraPermissions')}</Label>
-          <div className="grid max-h-48 grid-cols-1 gap-1 overflow-y-auto rounded-md border border-[#2a3040] p-3 sm:grid-cols-2">
-            {ALL_PERMISSIONS.map((permission) => (
-              <label key={permission} className="flex items-center gap-1 text-xs">
-                <input
-                  type="checkbox"
-                  checked={extraPermissions.includes(permission)}
-                  disabled={isSelf}
-                  onChange={() => togglePermission(permission)}
-                />
-                {permission}
-              </label>
-            ))}
+        </section>
+
+        <section className={`${cardClass} space-y-4 p-6`}>
+          <div>
+            <h2 className="flex items-center gap-2.5 text-sm font-semibold text-[#eef0f6]">
+              <span className={sectionAccent} />
+              {t('users.accessSection')}
+            </h2>
+            <p className={cn('mt-1.5 text-sm', textSubtle)}>{t('users.rolesHint')}</p>
           </div>
-        </div>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={allEmployees}
-            disabled={isSelf}
-            onChange={(e) => setAllEmployees(e.target.checked)}
-          />
-          {t('users.allEmployees')}
-        </label>
-        <div className="space-y-1.5">
-          <Label>{t('users.departments')}</Label>
-          <Input value={departments} onChange={(e) => setDepartments(e.target.value)} disabled={isSelf} />
-        </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            {ADMIN_ROLES.map((role) => {
+              const selected = roles.includes(role);
+              const Icon = ROLE_ICONS[role];
+              const blockedAdmin = role === 'system_admin' && !actorIsAdmin;
+              const disabled = lockedBySelf || blockedAdmin;
+              const highlights = ROLE_PERMISSIONS[role].slice(0, role === 'system_admin' ? 0 : 4);
+              return (
+                <button
+                  key={role}
+                  type="button"
+                  disabled={disabled}
+                  aria-pressed={selected}
+                  onClick={() => toggleRole(role)}
+                  className={cn(
+                    'flex flex-col rounded-xl border p-4 text-left transition-colors',
+                    selected
+                      ? 'border-[#16a34a] bg-[#16a34a]/10'
+                      : 'border-[#2a3040] bg-[#1a1e28]/50 hover:border-[#3a4154] hover:bg-[#1c2030]',
+                    disabled && 'cursor-not-allowed opacity-55 hover:border-[#2a3040] hover:bg-[#1a1e28]/50',
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    <span
+                      className={cn(
+                        'mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg border',
+                        selected
+                          ? 'border-[#16a34a]/40 bg-[#16a34a]/20 text-[#4ade80]'
+                          : 'border-[#2a3040] text-[#9aa3b5]',
+                      )}
+                    >
+                      <Icon className="size-4" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-semibold text-[#eef0f6]">{t(`roles.${role}`)}</span>
+                        <span
+                          className={cn(
+                            'flex size-5 shrink-0 items-center justify-center rounded-full border',
+                            selected ? 'border-[#16a34a] bg-[#16a34a] text-[#f0fdf4]' : 'border-[#3a4154]',
+                          )}
+                        >
+                          {selected ? <Check className="size-3" /> : null}
+                        </span>
+                      </div>
+                      <p className={cn('mt-1 text-xs leading-relaxed', textSubtle)}>{t(`rolesHint.${role}`)}</p>
+                    </div>
+                  </div>
+                  {role === 'system_admin' ? (
+                    <p className="mt-3 text-xs text-[#4ade80]">{t('users.systemAdminExclusive')}</p>
+                  ) : (
+                    <div className="mt-3 flex flex-wrap gap-1">
+                      {highlights.map((permission) => (
+                        <span
+                          key={permission}
+                          className="rounded-md border border-[#2a3040] bg-[#0e1016]/60 px-1.5 py-0.5 text-[10px] text-[#b8bfd0]"
+                        >
+                          {permissionLabel(t, permission)}
+                        </span>
+                      ))}
+                      {ROLE_PERMISSIONS[role].length > highlights.length ? (
+                        <span className="px-1.5 py-0.5 text-[10px] text-[#9aa3b5]">
+                          +{ROLE_PERMISSIONS[role].length - highlights.length}
+                        </span>
+                      ) : null}
+                    </div>
+                  )}
+                  {blockedAdmin && !lockedBySelf ? (
+                    <p className="mt-2 text-[11px] text-[#fbbf24]">{t('users.assignSystemAdminDenied')}</p>
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+
+          {roles.length === 0 ? <p className="text-sm text-[#fbbf24]">{t('users.rolesRequired')}</p> : null}
+
+          {conflicts.length > 0 ? (
+            <div className="flex gap-3 rounded-lg border border-[#fbbf24]/35 bg-[#fbbf24]/10 px-3 py-2.5 text-sm text-[#fbbf24]">
+              <ShieldAlert className="mt-0.5 size-4 shrink-0" />
+              <div>
+                <p>{t('users.conflictWarning')}</p>
+                <ul className="mt-1 list-disc pl-4 text-xs">
+                  {conflicts.map(([left, right]) => (
+                    <li key={`${left}-${right}`}>
+                      {permissionLabel(t, left)} ↔ {permissionLabel(t, right)}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          ) : null}
+
+          <div className="rounded-lg border border-[#2a3040] bg-[#0e1016]/40">
+            <button
+              type="button"
+              className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left text-sm text-[#eef0f6]"
+              onClick={() => setShowEffective((open) => !open)}
+            >
+              <span>
+                {t('users.effectiveCount', { count: effectivePermissions.length })}
+              </span>
+              <ChevronDown className={cn('size-4 text-[#9aa3b5] transition-transform', showEffective && 'rotate-180')} />
+            </button>
+            {showEffective ? (
+              <div className="flex flex-wrap gap-1.5 border-t border-[#2a3040] px-3 py-3">
+                {effectivePermissions.map((permission) => (
+                  <span
+                    key={permission}
+                    className="rounded-md border border-[#2a3040] bg-[#161922] px-2 py-1 text-[11px] text-[#b8bfd0]"
+                  >
+                    {permissionLabel(t, permission)}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+          </div>
+
+          <div className="rounded-lg border border-[#2a3040]">
+            <button
+              type="button"
+              className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left"
+              onClick={() => setShowExtras((open) => !open)}
+            >
+              <div>
+                <p className="text-sm font-medium text-[#eef0f6]">{t('users.extraPermissions')}</p>
+                <p className={cn('mt-0.5 text-xs', textSubtle)}>
+                  {extrasToSave.length
+                    ? t('users.extraPermissionsCount', { count: extrasToSave.length })
+                    : t('users.extraPermissionsHint')}
+                </p>
+              </div>
+              <ChevronDown className={cn('size-4 shrink-0 text-[#9aa3b5] transition-transform', showExtras && 'rotate-180')} />
+            </button>
+            {showExtras ? (
+              <div className="space-y-4 border-t border-[#2a3040] px-3 py-3">
+                {extraGroups.length === 0 ? (
+                  <p className={cn('text-sm', textSubtle)}>{t('users.extraPermissionsNone')}</p>
+                ) : (
+                  extraGroups.map((group) => (
+                    <div key={group.id}>
+                      <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[#9aa3b5]">
+                        {t(`permissionGroups.${group.id}`)}
+                      </p>
+                      <div className="grid gap-1.5 sm:grid-cols-2">
+                        {group.permissions.map((permission) => {
+                          const checked = extrasToSave.includes(permission);
+                          return (
+                            <label
+                              key={permission}
+                              className={cn(
+                                'flex cursor-pointer items-start gap-2 rounded-md border px-2.5 py-2 text-sm',
+                                checked
+                                  ? 'border-[#16a34a]/50 bg-[#16a34a]/10 text-[#eef0f6]'
+                                  : 'border-[#2a3040] text-[#b8bfd0]',
+                                lockedBySelf && 'cursor-not-allowed opacity-60',
+                              )}
+                            >
+                              <input
+                                type="checkbox"
+                                className="mt-0.5"
+                                checked={checked}
+                                disabled={lockedBySelf}
+                                onChange={() => togglePermission(permission)}
+                              />
+                              <span>{permissionLabel(t, permission)}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            ) : null}
+          </div>
+        </section>
+
+        <section className={`${cardClass} space-y-4 p-6`}>
+          <div>
+            <h2 className="flex items-center gap-2.5 text-sm font-semibold text-[#eef0f6]">
+              <span className={sectionAccent} />
+              {t('users.scopeSection')}
+            </h2>
+            <p className={cn('mt-1.5 text-sm', textSubtle)}>{t('users.scopeHint')}</p>
+          </div>
+          <div className="flex items-start justify-between gap-4 rounded-lg border border-[#2a3040] bg-[#1a1e28]/50 px-3 py-3">
+            <div>
+              <p className="text-sm font-medium text-[#eef0f6]">{t('users.allEmployees')}</p>
+              <p className={cn('mt-1 text-xs', textSubtle)}>{t('users.allEmployeesHint')}</p>
+            </div>
+            <Switch
+              checked={allEmployees}
+              disabled={lockedBySelf || !actorIsAdmin}
+              onCheckedChange={setAllEmployees}
+            />
+          </div>
+          {!allEmployees ? (
+            <div className="space-y-1.5">
+              <Label htmlFor="user-departments">{t('users.departments')}</Label>
+              <Input
+                id="user-departments"
+                value={departments}
+                onChange={(e) => setDepartments(e.target.value)}
+                disabled={lockedBySelf}
+                placeholder={t('users.departmentsPlaceholder')}
+              />
+            </div>
+          ) : null}
+        </section>
+
         {tempPassword ? (
-          <p className="rounded-md border border-[#fbbf24]/40 bg-[#fbbf24]/10 p-3 text-sm text-[#fbbf24]">
+          <p className="rounded-xl border border-[#fbbf24]/40 bg-[#fbbf24]/10 p-3 text-sm text-[#fbbf24]">
             {t('users.temporaryPassword')}: <strong>{tempPassword}</strong>
           </p>
         ) : null}
-        <Button type="submit" disabled={save.isPending}>
+
+        <Button
+          type="submit"
+          disabled={save.isPending || (!lockedBySelf && (conflicts.length > 0 || roles.length === 0))}
+        >
           {t('common.save')}
         </Button>
       </form>
@@ -347,6 +638,7 @@ export function UserCreatePage() {
     <PageContainer variant="narrow">
       <PageHeader
         title={t('users.create')}
+        description={t('users.createHint')}
         actions={
           <Button variant="outline" asChild>
             <Link to="/users">{t('common.back')}</Link>

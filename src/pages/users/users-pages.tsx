@@ -37,7 +37,7 @@ import {
   ROLE_PERMISSIONS,
   type AdminRole,
 } from '@/constants/rbac';
-import { getApiErrorMessage } from '@/lib/api-client';
+import { getApiErrorMessage, isUnknownDtoFieldError } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
 import { formatDate } from '@/lib/period';
 import {
@@ -189,10 +189,14 @@ function UserForm({ existing }: { existing?: AdminUser }) {
       })).filter((group) => group.permissions.length > 0),
     [extraChoices],
   );
-  const extrasToSave = useMemo(
-    () => extraPermissions.filter((permission) => !roleGranted.has(permission)),
-    [extraPermissions, roleGranted],
-  );
+  const extrasToSave = useMemo(() => {
+    const catalog = new Set(currentUser?.permissions ?? []);
+    return extraPermissions.filter((permission) => {
+      if (roleGranted.has(permission)) return false;
+      if (catalog.size > 0 && !catalog.has(permission)) return false;
+      return true;
+    });
+  }, [extraPermissions, roleGranted, currentUser?.permissions]);
   const effectivePermissions = useMemo(
     () => [...new Set([...roleGranted, ...extrasToSave])],
     [roleGranted, extrasToSave],
@@ -203,10 +207,36 @@ function UserForm({ existing }: { existing?: AdminUser }) {
   );
   const lockedBySelf = isSelf;
 
+  const saveUserIgnoringUnknownMfa = async (id: string, body: Record<string, unknown>) => {
+    try {
+      return await updateUser(id, body);
+    } catch (error) {
+      if (!isUnknownDtoFieldError(error, 'mfaEnabled') || !('mfaEnabled' in body)) throw error;
+      const rest = { ...body };
+      delete rest.mfaEnabled;
+      const result = await updateUser(id, rest);
+      toast.warning(t('users.mfaApiUnsupported'));
+      return result;
+    }
+  };
+
+  const createUserIgnoringUnknownMfa = async (body: Record<string, unknown>) => {
+    try {
+      return await createUser(body);
+    } catch (error) {
+      if (!isUnknownDtoFieldError(error, 'mfaEnabled') || !('mfaEnabled' in body)) throw error;
+      const rest = { ...body };
+      delete rest.mfaEnabled;
+      const result = await createUser(rest);
+      toast.warning(t('users.mfaApiUnsupported'));
+      return result;
+    }
+  };
+
   const save = useMutation({
     mutationFn: async () => {
       if (existing && isSelf) {
-        return updateUser(existing.id, { email, fullName });
+        return saveUserIgnoringUnknownMfa(existing.id, { email, fullName, mfaEnabled });
       }
       if (roles.length === 0) {
         throw new Error(t('users.rolesRequired'));
@@ -214,12 +244,11 @@ function UserForm({ existing }: { existing?: AdminUser }) {
       if (conflicts.length > 0) {
         throw new Error(t('users.saveBlockedConflict'));
       }
-      const body = {
+      const body: Record<string, unknown> = {
         email,
         fullName,
         roles,
         extraPermissions: extrasToSave,
-        mfaEnabled,
         dataScope: {
           allEmployees,
           departmentCodes: departments
@@ -228,8 +257,11 @@ function UserForm({ existing }: { existing?: AdminUser }) {
             .filter(Boolean),
         },
       };
-      if (existing) return updateUser(existing.id, body);
-      return createUser({ ...body, username });
+      if (existing || mfaEnabled) {
+        body.mfaEnabled = mfaEnabled;
+      }
+      if (existing) return saveUserIgnoringUnknownMfa(existing.id, body);
+      return createUserIgnoringUnknownMfa({ ...body, username });
     },
     onSuccess: (result) => {
       if ('temporaryPassword' in result) {
@@ -363,7 +395,7 @@ function UserForm({ existing }: { existing?: AdminUser }) {
               <p className="text-sm font-medium text-[#eef0f6]">{t('users.mfa')}</p>
               <p className={cn('mt-1 text-xs', textSubtle)}>{t('users.mfaHint')}</p>
             </div>
-            <Switch checked={mfaEnabled} disabled={lockedBySelf} onCheckedChange={setMfaEnabled} />
+            <Switch checked={mfaEnabled} onCheckedChange={setMfaEnabled} />
           </div>
         </section>
 

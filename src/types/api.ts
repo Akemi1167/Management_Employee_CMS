@@ -1,6 +1,6 @@
 export interface ApiErrorBody {
   statusCode: number;
-  message: string;
+  message?: string | string[];
   errors?: unknown;
   requestId?: string;
   timestamp?: string;

@@ -18,8 +18,16 @@ export function getApiErrorMessage(error: unknown, fallback = 'Đã xảy ra l�
   const axiosErr = error as AxiosError<ApiErrorBody>;
   const message = axiosErr.response?.data?.message;
   if (typeof message === 'string' && message.trim()) return message;
+  if (Array.isArray(message)) {
+    const parts = message.filter((item): item is string => typeof item === 'string' && Boolean(item.trim()));
+    if (parts.length > 0) return parts.join('; ');
+  }
   if (axiosErr.message) return axiosErr.message;
   return fallback;
+}
+
+export function isUnknownDtoFieldError(error: unknown, field: string) {
+  return new RegExp(`property ${field}|${field}.*should not exist`, 'i').test(getApiErrorMessage(error));
 }
 
 export const apiClient = axios.create({

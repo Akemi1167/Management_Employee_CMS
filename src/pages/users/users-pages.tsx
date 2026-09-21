@@ -88,6 +88,11 @@ export function UsersListPage() {
     { key: 'email', header: t('users.email') },
     { key: 'roles', header: t('users.roles'), render: (row) => row.roles.map((role) => t(`roles.${role}`)).join(', ') },
     { key: 'status', header: t('common.status'), render: (row) => <StatusBadge value={row.status} ns="userStatus" /> },
+    {
+      key: 'mfaEnabled',
+      header: t('users.mfa'),
+      render: (row) => (row.mfaEnabled ? t('users.mfaOn') : t('users.mfaOff')),
+    },
     { key: 'lastLoginAt', header: t('audit.occurredAt'), render: (row) => formatDate(row.lastLoginAt) },
   ];
 
@@ -162,6 +167,7 @@ function UserForm({ existing }: { existing?: AdminUser }) {
   const [extraPermissions, setExtraPermissions] = useState<string[]>(existing?.extraPermissions ?? []);
   const [allEmployees, setAllEmployees] = useState(existing?.dataScope.allEmployees ?? false);
   const [departments, setDepartments] = useState(existing?.dataScope.departmentCodes.join(', ') ?? '');
+  const [mfaEnabled, setMfaEnabled] = useState(existing?.mfaEnabled ?? false);
   const [disableReason, setDisableReason] = useState('');
   const [enableReason, setEnableReason] = useState('');
   const [resetReason, setResetReason] = useState('');
@@ -213,6 +219,7 @@ function UserForm({ existing }: { existing?: AdminUser }) {
         fullName,
         roles,
         extraPermissions: extrasToSave,
+        mfaEnabled,
         dataScope: {
           allEmployees,
           departmentCodes: departments
@@ -350,6 +357,13 @@ function UserForm({ existing }: { existing?: AdminUser }) {
                 required
               />
             </div>
+          </div>
+          <div className="flex items-start justify-between gap-4 rounded-lg border border-[#2a3040] bg-[#1a1e28]/50 px-3 py-3">
+            <div>
+              <p className="text-sm font-medium text-[#eef0f6]">{t('users.mfa')}</p>
+              <p className={cn('mt-1 text-xs', textSubtle)}>{t('users.mfaHint')}</p>
+            </div>
+            <Switch checked={mfaEnabled} disabled={lockedBySelf} onCheckedChange={setMfaEnabled} />
           </div>
         </section>
 

@@ -32,3 +32,11 @@ export function resetUserPassword(id: string, reason: string) {
     { reason },
   );
 }
+
+export function disableUserMfa(id: string, reason: string) {
+  return apiPost<AdminUser>(`${API_ENDPOINTS.USERS}/${id}/mfa/disable`, { reason });
+}
+
+export function enableUserMfa(id: string, reason: string) {
+  return apiPost<AdminUser>(`${API_ENDPOINTS.USERS}/${id}/mfa/enable`, { reason });
+}

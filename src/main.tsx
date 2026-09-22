@@ -4,6 +4,8 @@ import { App } from './App';
 import './i18n';
 import './index.css';
 
+console.log('Welcome, Boss');
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />

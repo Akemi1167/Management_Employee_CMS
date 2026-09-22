@@ -18,6 +18,13 @@ export function fetchEmployee(id: string) {
   return apiGet<Employee>(`${API_ENDPOINTS.EMPLOYEES}/${id}`);
 }
 
+export function deleteEmployee(id: string, reason: string) {
+  return apiPost<{ id: string; employeeCode: string }>(
+    `${API_ENDPOINTS.EMPLOYEES}/${id}/delete`,
+    { reason },
+  );
+}
+
 export function updateEmployee(
   id: string,
   body: {

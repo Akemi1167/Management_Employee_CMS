@@ -1,16 +1,16 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { CalendarCheck, ClipboardList, CreditCard, KeyRound, Pencil, Wallet } from 'lucide-react';
+import { CalendarCheck, ClipboardList, CreditCard, KeyRound, Pencil, Trash2, Wallet } from 'lucide-react';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { DataTable, type Column } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { StepUpDialog } from '@/components/shared/step-up-dialog';
 import { Button } from '@/components/ui/button';
-import { ConfirmDialog } from '@/components/ui/dialog';
+import { ConfirmDialog, Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
@@ -20,6 +20,7 @@ import { getApiErrorMessage, moneyText } from '@/lib/api-client';
 import { dateInputToIso, formatDate, formatDay, toDateInput } from '@/lib/period';
 import { hasAssignedWallet } from '@/lib/wallet-workflow';
 import {
+  deleteEmployee,
   fetchEmployee,
   fetchEmployeeWalletImage,
   provisionEmployeePortal,
@@ -129,6 +130,14 @@ export function EmployeeDetailPage() {
                 </a>
               </Button>
             ) : null}
+            {has(PERMISSION.EMPLOYEE_UPDATE) ? (
+              <Button variant="destructive" asChild>
+                <a href="#delete-employee">
+                  <Trash2 className="h-4 w-4" />
+                  {t('employees.deleteProfile')}
+                </a>
+              </Button>
+            ) : null}
             {has(PERMISSION.WALLET_WRITE) && (!hasAssignedWallet(data?.wallet) || isAdmin) ? (
               <Button variant="outline" asChild>
                 <a href="#employee-wallet">
@@ -215,6 +224,7 @@ function Field({ label, value }: { label: string; value: string }) {
 
 function EmployeeProfileCard({ employee }: { employee: Employee }) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const canUpdate = useAuthStore((s) => s.hasPermission(PERMISSION.EMPLOYEE_UPDATE));
   const [fullName, setFullName] = useState(employee.fullName);
@@ -225,6 +235,8 @@ function EmployeeProfileCard({ employee }: { employee: Employee }) {
   const [employmentStatus, setEmploymentStatus] = useState(employee.employmentStatus);
   const [terminatedAt, setTerminatedAt] = useState(toDateInput(employee.terminatedAt));
   const [reason, setReason] = useState('');
+  const [deleteReason, setDeleteReason] = useState('');
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [confirmKind, setConfirmKind] = useState<'disable' | 'enable' | null>(null);
   const [stepUp, setStepUp] = useState<{ action: string; retry: () => void } | null>(null);
 
@@ -242,6 +254,17 @@ function EmployeeProfileCard({ employee }: { employee: Employee }) {
     if (window.location.hash === '#employee-profile') {
       document.getElementById('employee-profile')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
+  }, []);
+
+  useEffect(() => {
+    const openDelete = () => {
+      if (window.location.hash === '#delete-employee') {
+        setDeleteOpen(true);
+      }
+    };
+    openDelete();
+    window.addEventListener('hashchange', openDelete);
+    return () => window.removeEventListener('hashchange', openDelete);
   }, []);
 
   const portalStatus = employee.portalAccount?.status;
@@ -309,8 +332,33 @@ function EmployeeProfileCard({ employee }: { employee: Employee }) {
     save.mutate();
   };
 
+  const remove = useMutation({
+    mutationFn: () => deleteEmployee(employee.id, deleteReason.trim()),
+    onSuccess: () => {
+      setDeleteOpen(false);
+      setDeleteReason('');
+      toast.success(t('employees.deleted'));
+      void queryClient.invalidateQueries({ queryKey: ['employees'] });
+      void queryClient.removeQueries({ queryKey: ['employee', employee.id] });
+      navigate('/employees');
+    },
+    onError: (error) =>
+      runOrStepUp(error, () =>
+        setStepUp({ action: `employee:delete:${employee.id}`, retry: () => remove.mutate() }),
+      ),
+  });
+
+  const closeDeleteDialog = () => {
+    if (remove.isPending) return;
+    setDeleteOpen(false);
+    if (window.location.hash === '#delete-employee') {
+      window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
+    }
+  };
+
   return (
     <div id="employee-profile" className={`${cardClass} mb-4 scroll-mt-4 p-5`}>
+      <div id="delete-employee" className="sr-only" />
       <h2 className="mb-3 text-sm font-semibold text-[#eef0f6]">{t('employees.detail')}</h2>
       <div className="mb-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Field label={t('employees.code')} value={employee.employeeCode} />
@@ -377,10 +425,16 @@ function EmployeeProfileCard({ employee }: { employee: Employee }) {
           {invalidTerminatedDate ? (
             <p className="text-[10px] text-[#fbbf24]">{t('employees.terminatedBeforeHired')}</p>
           ) : null}
-          <Button disabled={!canSubmit || save.isPending} onClick={requestSave}>
-            <Pencil className="h-4 w-4" />
-            {t('employees.saveProfile')}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button disabled={!canSubmit || save.isPending} onClick={requestSave}>
+              <Pencil className="h-4 w-4" />
+              {t('employees.saveProfile')}
+            </Button>
+            <Button variant="destructive" type="button" onClick={() => setDeleteOpen(true)}>
+              <Trash2 className="h-4 w-4" />
+              {t('employees.deleteProfile')}
+            </Button>
+          </div>
         </div>
       ) : null}
       <ConfirmDialog
@@ -400,6 +454,41 @@ function EmployeeProfileCard({ employee }: { employee: Employee }) {
         description={t('employees.confirmEnableDescription')}
         loading={save.isPending}
       />
+      <Dialog
+        open={deleteOpen}
+        onClose={closeDeleteDialog}
+        title={t('employees.confirmDeleteTitle')}
+        footer={
+          <>
+            <Button
+              variant="outline"
+              type="button"
+              disabled={remove.isPending}
+              onClick={closeDeleteDialog}
+            >
+              {t('common.cancel')}
+            </Button>
+            <Button
+              variant="destructive"
+              type="button"
+              disabled={deleteReason.trim().length < 10 || remove.isPending}
+              onClick={() => remove.mutate()}
+            >
+              <Trash2 className="h-4 w-4" />
+              {t('employees.deleteProfile')}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <p className="text-sm text-[#b8bfd0]">{t('employees.confirmDeleteDescription')}</p>
+          <p className={`text-xs ${textSubtle}`}>{t('employees.deleteHint')}</p>
+          <div className="space-y-1.5">
+            <Label>{t('employees.deleteReason')}</Label>
+            <Input value={deleteReason} onChange={(e) => setDeleteReason(e.target.value)} />
+          </div>
+        </div>
+      </Dialog>
       <StepUpDialog
         open={Boolean(stepUp)}
         action={stepUp?.action ?? ''}

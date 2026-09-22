@@ -114,6 +114,11 @@ export function EmployeesListPage() {
               {t('employees.setPortalPassword')}
             </Link>
           ) : null}
+          {canUpdate ? (
+            <Link to={`/employees/${row.id}#delete-employee`} className="text-[#f87171] hover:underline">
+              {t('employees.deleteProfile')}
+            </Link>
+          ) : null}
         </div>
       ),
     },

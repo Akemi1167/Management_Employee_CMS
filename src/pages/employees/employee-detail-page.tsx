@@ -1012,6 +1012,16 @@ function EmployeeAttendancePanel({
       render: (row) => moneyText(row.overtimeDays ?? row.summary?.overtimeDays),
     },
     {
+      key: 'overtimeHours',
+      header: t('attendance.overtimeHours'),
+      render: (row) => moneyText(row.overtimeHours ?? row.summary?.overtimeHours),
+    },
+    {
+      key: 'unpaidLeaveDays',
+      header: t('attendance.unpaidLeave'),
+      render: (row) => moneyText(row.unpaidLeaveDays ?? row.summary?.unpaidLeaveDays),
+    },
+    {
       key: 'penaltyAmount',
       header: t('attendance.penaltyAmount'),
       render: (row) => moneyText(row.penaltyAmount),

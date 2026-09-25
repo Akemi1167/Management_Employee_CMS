@@ -374,7 +374,7 @@
     "downloadTemplate": "下载 Excel 模板",
     "fileHint": "仅 .xlsx 或 .csv。工作表「chấm công + phạt」用于 ATTENDANCE（以及 PENALTY 重载）；工作表「lương」用于 PAYROLL。",
     "typeHint": {
-      "ATTENDANCE": "模板 attendance-monthly-v1。必填：员工编号、实际出勤、当月天数。罚款金额可选 — API 在同一批次创建罚款草稿，一次审批/发布。",
+      "ATTENDANCE": "模板 attendance-monthly-v1。必填：员工编号、实际出勤、当月天数。另含加班时数与请假。罚款金额可选 — API 在同一批次创建罚款草稿，一次审批/发布。",
       "PENALTY": "模板 penalty-monthly-v1，同一工作表。仅重载罚款金额；出勤列仅作核对。不是主导入路径。",
       "PAYROLL": "模板 payroll-monthly-v1，工作表「lương」。"
     },
@@ -411,6 +411,7 @@
     "workingDays": "当月天数",
     "actualDays": "实际出勤",
     "overtime": "加班天数",
+    "overtimeHours": "加班时数",
     "specialLeave": "特殊假",
     "unpaidLeave": "无薪假",
     "employedDays": "在职天数",

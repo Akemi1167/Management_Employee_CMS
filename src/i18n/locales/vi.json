@@ -374,7 +374,7 @@
     "downloadTemplate": "Tải mẫu Excel",
     "fileHint": "Chỉ .xlsx hoặc .csv. Sheet «chấm công + phạt» cho ATTENDANCE (và PENALTY khi nạp lại); sheet «lương» cho PAYROLL.",
     "typeHint": {
-      "ATTENDANCE": "Mẫu attendance-monthly-v1. Bắt buộc: mã nhân viên, ngày làm thực tế, ngày trong tháng. Cột số tiền phạt tùy chọn — hệ thống tạo staging phạt cùng phiên, một lần duyệt/công bố.",
+      "ATTENDANCE": "Mẫu attendance-monthly-v1. Bắt buộc: mã nhân viên, ngày làm thực tế, ngày trong tháng. Có thêm số giờ tăng ca và nghỉ không lương. Cột số tiền phạt tùy chọn — hệ thống tạo staging phạt cùng phiên, một lần duyệt/công bố.",
       "PENALTY": "Mẫu penalty-monthly-v1, cùng sheet. Chỉ nạp lại số tiền phạt; các cột ngày công chỉ để đối chiếu. Không dùng làm luồng nhập chính.",
       "PAYROLL": "Mẫu payroll-monthly-v1, sheet «lương»."
     },
@@ -411,6 +411,7 @@
     "workingDays": "Ngày trong tháng",
     "actualDays": "Ngày làm thực tế",
     "overtime": "Ngày tăng ca",
+    "overtimeHours": "Giờ tăng ca",
     "specialLeave": "OFF đặc biệt",
     "unpaidLeave": "Nghỉ không lương",
     "employedDays": "Ngày đã làm việc",

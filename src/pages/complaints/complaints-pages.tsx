@@ -598,6 +598,7 @@ function stagingForm(type: DataType, row: AttendanceRecord | PenaltyRecord | Pay
     periodWorkingDays: record.periodWorkingDays ?? '',
     actualWorkedDays: record.actualWorkedDays ?? '',
     overtimeDays: record.overtimeDays ?? '',
+    overtimeHours: record.overtimeHours ?? '',
     specialLeaveDays: record.specialLeaveDays ?? '',
     unpaidLeaveDays: record.unpaidLeaveDays ?? '',
     employedDays: record.employedDays ?? '',

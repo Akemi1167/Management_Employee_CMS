@@ -212,6 +212,7 @@ export interface AttendanceRecord {
   periodWorkingDays: string | null;
   actualWorkedDays: string | null;
   overtimeDays: string | null;
+  overtimeHours: string | null;
   specialLeaveDays: string | null;
   unpaidLeaveDays: string | null;
   employedDays: string | null;
@@ -224,6 +225,7 @@ export interface AttendanceRecord {
     periodWorkingDays: string | null;
     actualWorkedDays: string | null;
     overtimeDays: string | null;
+    overtimeHours: string | null;
     specialLeaveDays: string | null;
     unpaidLeaveDays: string | null;
   };

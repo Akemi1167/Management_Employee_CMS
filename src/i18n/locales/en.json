@@ -374,7 +374,7 @@
     "downloadTemplate": "Download Excel template",
     "fileHint": ".xlsx or .csv only. Sheet «chấm công + phạt» for ATTENDANCE (and PENALTY reloads); sheet «lương» for PAYROLL.",
     "typeHint": {
-      "ATTENDANCE": "Template attendance-monthly-v1. Required: employee code, days worked, days in period. Penalty amount is optional — the API creates companion penalty staging in the same session for one approval/publish.",
+      "ATTENDANCE": "Template attendance-monthly-v1. Required: employee code, days worked, days in period. Also includes overtime hours and unpaid leave. Penalty amount is optional — the API creates companion penalty staging in the same session for one approval/publish.",
       "PENALTY": "Template penalty-monthly-v1, same sheet. Reloads penalty amounts only; day columns are cross-check. Not the primary import path.",
       "PAYROLL": "Template payroll-monthly-v1, sheet «lương»."
     },
@@ -411,6 +411,7 @@
     "workingDays": "Days in period",
     "actualDays": "Days worked",
     "overtime": "Overtime days",
+    "overtimeHours": "Overtime hours",
     "specialLeave": "Special leave",
     "unpaidLeave": "Unpaid leave",
     "employedDays": "Employed days",

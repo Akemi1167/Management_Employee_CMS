@@ -16,7 +16,7 @@ import { Select } from '@/components/ui/select';
 import { cardClass } from '@/constants/theme';
 import { PERMISSION } from '@/constants/api-endpoints';
 import { getApiErrorMessage, moneyText } from '@/lib/api-client';
-import { isPeriodLocked, nextComplaintStatuses } from '@/lib/complaint-workflow';
+import { nextComplaintStatuses } from '@/lib/complaint-workflow';
 import { formatDate } from '@/lib/period';
 import { fetchComplaint, fetchComplaints, updateComplaint } from '@/services/complaint.service';
 import {
@@ -28,7 +28,6 @@ import {
   patchPenalty,
 } from '@/services/hr-records.service';
 import { fetchUsers } from '@/services/user.service';
-import { fetchPeriods } from '@/services/workflow.service';
 import { useAuthStore } from '@/stores/auth-store';
 import type {
   AttendanceRecord,
@@ -41,6 +40,47 @@ import type {
 
 function compactFields(form: Record<string, string>) {
   return Object.fromEntries(Object.entries(form).filter(([, value]) => value.trim() !== ''));
+}
+
+function assigneeLabel(row: Pick<Complaint, 'assigneeName' | 'assigneeUsername' | 'assigneeId'>) {
+  if (row.assigneeName && row.assigneeUsername) {
+    return `${row.assigneeName} (${row.assigneeUsername})`;
+  }
+  return row.assigneeName || row.assigneeUsername || row.assigneeId || '—';
+}
+
+function stagingFieldLabel(
+  t: (key: string) => string,
+  type: DataType,
+  key: string,
+) {
+  const labels: Record<string, string> = {
+    periodWorkingDays: t('attendance.workingDays'),
+    actualWorkedDays: t('attendance.actualDays'),
+    overtimeDays: t('attendance.overtime'),
+    overtimeHours: t('attendance.overtimeHours'),
+    specialLeaveDays: t('attendance.specialLeave'),
+    unpaidLeaveDays: t('attendance.unpaidLeave'),
+    employedDays: t('attendance.employedDays'),
+    penaltyAmount: t('attendance.penaltyAmount'),
+    note: t('common.note'),
+    amount: t('penalties.amount'),
+    penaltyReason: t('penalties.reason'),
+    baseSalary: t('payroll.baseSalary'),
+    totalBaseSalary: t('payroll.totalBase'),
+    periodSalary: t('payroll.periodSalary'),
+    payableDays: t('payroll.payableDays'),
+    grossAmount: t('payroll.gross'),
+    totalDeduction: t('payroll.deduction'),
+    netAmount: t('payroll.net'),
+    usdtAmount: t('payroll.usdt'),
+  };
+
+  if (type === 'PAYROLL' && key === 'overtimeHours') {
+    return t('payroll.overtimeHours');
+  }
+
+  return labels[key] ?? key;
 }
 
 export function ComplaintsListPage() {
@@ -83,6 +123,11 @@ export function ComplaintsListPage() {
       key: 'status',
       header: t('common.status'),
       render: (row) => <StatusBadge value={row.status} ns="complaintStatus" />,
+    },
+    {
+      key: 'assigneeName',
+      header: t('complaints.assignee'),
+      render: (row) => assigneeLabel(row),
     },
     { key: 'createdAt', header: t('audit.occurredAt'), render: (row) => formatDate(row.createdAt) },
     ...(canHandle
@@ -153,7 +198,6 @@ export function ComplaintDetailPage() {
   const { id = '' } = useParams();
   const queryClient = useQueryClient();
   const canHandle = useAuthStore((s) => s.hasPermission(PERMISSION.COMPLAINT_HANDLE));
-  const canReadImports = useAuthStore((s) => s.hasPermission(PERMISSION.IMPORT_READ));
   const canReadUsers = useAuthStore((s) => s.hasPermission(PERMISSION.USER_READ));
   const currentUserId = useAuthStore((s) => s.user?.id);
   const [status, setStatus] = useState('');
@@ -175,19 +219,7 @@ export function ComplaintDetailPage() {
     enabled: canReadUsers && canHandle,
   });
 
-  const periods = useQuery({
-    queryKey: ['publishing-periods', data?.period, data?.subjectType],
-    queryFn: () => fetchPeriods({ period: data!.period, dataType: data!.subjectType, limit: 20 }),
-    enabled: canReadImports && Boolean(data?.period),
-  });
-  const attendancePeriods = useQuery({
-    queryKey: ['publishing-periods', data?.period, 'ATTENDANCE'],
-    queryFn: () => fetchPeriods({ period: data!.period, dataType: 'ATTENDANCE', limit: 20 }),
-    enabled: canReadImports && data?.subjectType === 'PENALTY',
-  });
-  const periodLocked = [...(periods.data?.items ?? []), ...(attendancePeriods.data?.items ?? [])].some(
-    (item) => isPeriodLocked(item),
-  );
+  const periodLocked = Boolean(data?.periodLocked);
 
   const nextStatuses = data ? nextComplaintStatuses(data.status) : [];
   const effectiveStatus = status || (data?.status === 'NEW' ? 'IN_PROGRESS' : data?.status ?? '');
@@ -251,7 +283,11 @@ export function ComplaintDetailPage() {
               {t('complaints.dataVersion')}: {data.dataVersion}
             </p>
             <p>
-              {t('complaints.assignee')}: {data.assigneeId ?? '—'}
+              {t('complaints.assignee')}: {assigneeLabel(data)}
+            </p>
+            <p>
+              {t('complaints.publishedVersion')}: {data.currentPublishedVersion ?? '—'}
+              {data.periodLocked ? ` · ${t('complaints.periodLockedShort')}` : ''}
             </p>
             <p className="sm:col-span-2">
               {t('complaints.reason')}: {data.reason}
@@ -259,19 +295,22 @@ export function ComplaintDetailPage() {
             {data.resolution ? (
               <p className="sm:col-span-2">
                 {t('complaints.resolution')}: {data.resolution}
+                {data.resolvedByName ? ` · ${t('complaints.resolvedBy')}: ${data.resolvedByName}` : ''}
               </p>
             ) : null}
-            {data.attachments?.length ? (
-              <div className="sm:col-span-2">
-                <p className="mb-1">{t('complaints.attachments')}</p>
-                {data.attachments.map((file) => (
+            <div className="sm:col-span-2">
+              <p className="mb-1">{t('complaints.attachments')}</p>
+              {data.attachments?.length ? (
+                data.attachments.map((file) => (
                   <p key={`${file.originalFilename}-${file.sizeBytes}`} className="text-sm text-[#b8bfd0]">
                     {file.originalFilename} ({file.mimeType}, {file.sizeBytes} B)
                     {file.malwareScanned ? ` · ${t('complaints.scanned')}` : ''}
                   </p>
-                ))}
-              </div>
-            ) : null}
+                ))
+              ) : (
+                <p className="text-sm text-[#9aa3b5]">{t('complaints.noAttachments')}</p>
+              )}
+            </div>
           </div>
 
           <CorrectionPanel complaint={data} periodLocked={periodLocked} lockedSessionId={adjustmentImportSessionId} onSessionId={setAdjustmentImportSessionId} />
@@ -424,7 +463,7 @@ function CorrectionPanel({
         ) : (
           <p className="text-xs text-[#9aa3b5]">{t('complaints.fixProfileHint')}</p>
         )}
-        {locked && canImport ? (
+        {!locked && canImport ? (
           <Button variant="outline" asChild>
             <Link to={importPath}>{t('complaints.openImport')}</Link>
           </Button>
@@ -441,7 +480,7 @@ function CorrectionPanel({
         ) : null}
       </div>
       {!canPatch && !locked ? <p className="text-sm text-[#fbbf24]">{t('complaints.waitStaging')}</p> : null}
-      {locked && !canImport ? <p className="text-sm text-[#fbbf24]">{t('complaints.waitImport')}</p> : null}
+      {locked ? <p className="text-sm text-[#fbbf24]">{t('complaints.waitImport')}</p> : null}
       {canPatch && !canHandle ? <p className="text-sm text-[#9aa3b5]">{t('complaints.waitOperator')}</p> : null}
       {canHandle && !canPatch && !locked ? <p className="text-sm text-[#9aa3b5]">{t('complaints.waitDataEntry')}</p> : null}
       {locked && canHandle ? (
@@ -532,7 +571,7 @@ function StagingCorrectionEditor({ complaint }: { complaint: Complaint }) {
       >
         {Object.keys(form).map((key) => (
           <div key={key} className="mb-3 space-y-1.5">
-            <Label>{key}</Label>
+            <Label>{stagingFieldLabel(t, complaint.subjectType, key)}</Label>
             <Input value={form[key] ?? ''} onChange={(e) => setForm((prev) => ({ ...prev, [key]: e.target.value }))} />
           </div>
         ))}

@@ -353,12 +353,17 @@ export interface Complaint {
   }>;
   status: string;
   assigneeId: string | null;
+  assigneeName?: string | null;
+  assigneeUsername?: string | null;
   assignedAt: string | null;
   messages: ComplaintMessage[];
   resolution: string | null;
   resolvedBy: string | null;
+  resolvedByName?: string | null;
   resolvedAt: string | null;
   adjustmentImportSessionId: string | null;
+  periodLocked?: boolean;
+  currentPublishedVersion?: number | null;
   correction?: ComplaintCorrection | null;
   createdAt: string | null;
   updatedAt: string | null;

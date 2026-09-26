@@ -130,11 +130,18 @@ export function EmployeesListPage() {
         title={t('employees.title')}
         description={t('employees.description')}
         actions={
-          canImport ? (
-            <Button asChild>
-              <Link to="/employees/import">{t('employees.importTitle')}</Link>
-            </Button>
-          ) : null
+          <div className="flex flex-wrap gap-2">
+            {canWallet ? (
+              <Button variant="outline" asChild>
+                <Link to="/employees/wallets/import">{t('employees.walletImportTitle')}</Link>
+              </Button>
+            ) : null}
+            {canImport ? (
+              <Button asChild>
+                <Link to="/employees/import">{t('employees.importTitle')}</Link>
+              </Button>
+            ) : null}
+          </div>
         }
       />
       <div className={`${cardClass} mb-4 flex flex-wrap gap-2 p-4`}>

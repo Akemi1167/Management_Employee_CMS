@@ -7,12 +7,15 @@ import { PageHeader } from '@/components/layout/page-header';
 import { DataTable, type Column } from '@/components/shared/data-table';
 import { EmployeeLink } from '@/components/shared/employee-link';
 import { StatusBadge } from '@/components/shared/status-badge';
+import { WipePeriodButton } from '@/components/shared/wipe-period-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
+import { PERMISSION } from '@/constants/api-endpoints';
 import { cardClass, textBody, textSubtle, textTitle } from '@/constants/theme';
 import { formatDate, previousPeriod } from '@/lib/period';
 import { fetchPeriodOverview } from '@/services/reports.service';
+import { useAuthStore } from '@/stores/auth-store';
 import type {
   HrDataType,
   PeriodCoverageSummary,
@@ -26,6 +29,7 @@ const PAGE_SIZE = 20;
 
 export function PeriodOverviewPage() {
   const { t } = useTranslation();
+  const canWipe = useAuthStore((s) => s.hasPermission(PERMISSION.DATA_UNPUBLISH));
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = searchParams.get('tab') === 'confirmations' ? 'confirmations' : 'coverage';
   const period = searchParams.get('period') || previousPeriod();
@@ -142,6 +146,7 @@ export function PeriodOverviewPage() {
             onChange={(e) => update({ query: e.target.value })}
             placeholder={t('periodOverview.search')}
           />
+          {canWipe ? <WipePeriodButton period={period} /> : null}
         </div>
         <p className={`mt-3 text-xs ${textSubtle}`}>
           {tab === 'coverage' ? t('periodOverview.coverageHint') : t('periodOverview.confirmHint')}

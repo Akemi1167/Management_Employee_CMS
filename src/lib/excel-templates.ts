@@ -157,6 +157,25 @@ export function downloadHrExcelTemplate() {
   ]);
 }
 
+export function downloadWalletImportTemplate() {
+  downloadXlsx('mau-ma-vi.xlsx', [
+    {
+      name: 'ma vi',
+      rows: [
+        ['Mã số thẻ', 'Họ tên', 'Địa chỉ ví', 'Nền tảng', 'Mạng', 'Chủ ví'],
+        [
+          'NV001',
+          'Nguyen Van A',
+          `T${'Q'.repeat(33)}`,
+          'BINANCE',
+          'TRC20',
+          'Nguyen Van A',
+        ],
+      ],
+    },
+  ]);
+}
+
 export function downloadEmployeeRosterTemplate() {
   downloadXlsx('mau-danh-sach-nhan-vien.xlsx', [
     {

@@ -36,3 +36,10 @@ export function lockPeriod(id: string, reason: string) {
     'Idempotency-Key': newIdempotencyKey(),
   });
 }
+
+export function wipePeriod(period: string, body: { confirmPeriod: string; reason: string }) {
+  return apiPost<{ period: string; deleted: Record<string, number> }>(
+    `${API_ENDPOINTS.PUBLISHING}/periods/${period}/wipe`,
+    body,
+  );
+}

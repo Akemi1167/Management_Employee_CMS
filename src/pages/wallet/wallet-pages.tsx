@@ -45,6 +45,7 @@ export function WalletRequestsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const canConfigure = useAuthStore((s) => s.hasPermission(PERMISSION.WALLET_LOCK_CONFIGURE));
+  const canImportWallets = useAuthStore((s) => s.hasPermission(PERMISSION.WALLET_WRITE));
   const [searchParams] = useSearchParams();
   const [status, setStatus] = useState('');
   const [employeeCode, setEmployeeCode] = useState(searchParams.get('employeeCode') ?? '');
@@ -124,7 +125,17 @@ export function WalletRequestsPage() {
 
   return (
     <PageContainer>
-      <PageHeader title={t('wallet.title')} description={t('wallet.description')} />
+      <PageHeader
+        title={t('wallet.title')}
+        description={t('wallet.description')}
+        actions={
+          canImportWallets ? (
+            <Button asChild>
+              <Link to="/employees/wallets/import">{t('employees.walletImportTitle')}</Link>
+            </Button>
+          ) : null
+        }
+      />
       <p className={`${cardClass} mb-4 p-4 text-sm text-[#b8bfd0]`}>{t('wallet.flowHint')}</p>
       <div className={`${cardClass} mb-4 flex flex-wrap gap-2 p-4`}>
         <Input

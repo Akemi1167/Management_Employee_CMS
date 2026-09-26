@@ -388,6 +388,28 @@ export interface EmployeeFileImportResult {
   errors: { rowNumber: number; employeeCode: string | null; message: string }[];
 }
 
+export interface EmployeeWalletImportResult {
+  sheetName: string;
+  applied: number;
+  unchanged: number;
+  skipped: number;
+  summary: {
+    alreadyHasWallet: number;
+    sameWallet: number;
+    duplicateInFile: number;
+    walletOwnedByOther: number;
+    employeeNotFound: number;
+    other: number;
+  };
+  errors: {
+    rowNumber: number;
+    employeeCode: string | null;
+    addressMasked: string | null;
+    code: string;
+    message: string;
+  }[];
+}
+
 export interface WalletChangeRequest {
   id: string;
   code: string;

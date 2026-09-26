@@ -1,6 +1,12 @@
 import { apiClient, apiGet, apiPatch, apiPost } from '@/lib/api-client';
 import { API_ENDPOINTS } from '@/constants/api-endpoints';
-import type { Employee, EmployeeFileImportResult, EmployeePortalAccount, Paginated } from '@/types/api';
+import type {
+  Employee,
+  EmployeeFileImportResult,
+  EmployeePortalAccount,
+  EmployeeWalletImportResult,
+  Paginated,
+} from '@/types/api';
 
 export const WALLET_PLATFORMS = ['BINANCE', 'OTHER'] as const;
 export const WALLET_NETWORKS = ['BEP20', 'TRC20', 'ERC20', 'OTHER'] as const;
@@ -110,6 +116,17 @@ export async function importEmployees(file: File) {
   form.append('file', file);
   const { data } = await apiClient.post<EmployeeFileImportResult>(
     `${API_ENDPOINTS.EMPLOYEES}/import`,
+    form,
+  );
+  return data;
+}
+
+export async function importEmployeeWallets(file: File, reason: string) {
+  const form = new FormData();
+  form.append('file', file);
+  form.append('reason', reason);
+  const { data } = await apiClient.post<EmployeeWalletImportResult>(
+    `${API_ENDPOINTS.EMPLOYEES}/wallets/import`,
     form,
   );
   return data;

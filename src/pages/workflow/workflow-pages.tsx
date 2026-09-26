@@ -8,6 +8,7 @@ import { PageHeader } from '@/components/layout/page-header';
 import { DataTable, type Column } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { StepUpDialog } from '@/components/shared/step-up-dialog';
+import { WipePeriodButton } from '@/components/shared/wipe-period-dialog';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -16,7 +17,7 @@ import { Select } from '@/components/ui/select';
 import { cardClass } from '@/constants/theme';
 import { PERMISSION } from '@/constants/api-endpoints';
 import { getApiErrorMessage, moneyText } from '@/lib/api-client';
-import { formatDate } from '@/lib/period';
+import { formatDate, previousPeriod } from '@/lib/period';
 import { fetchImports } from '@/services/import.service';
 import {
   approveSession,
@@ -175,6 +176,7 @@ export function PublishingPage() {
   const queryClient = useQueryClient();
   const canPublish = useAuthStore((s) => s.hasPermission(PERMISSION.DATA_PUBLISH));
   const canLock = useAuthStore((s) => s.hasPermission(PERMISSION.DATA_LOCK));
+  const canWipe = useAuthStore((s) => s.hasPermission(PERMISSION.DATA_UNPUBLISH));
   const [sessionId, setSessionId] = useState('');
   const [expectedRecordCount, setExpectedRecordCount] = useState('');
   const [lockReason, setLockReason] = useState('');
@@ -299,6 +301,7 @@ export function PublishingPage() {
             </option>
           ))}
         </Select>
+        {canWipe ? <WipePeriodButton period={periodFilter || previousPeriod()} /> : null}
       </div>
       <DataTable columns={columns} data={data?.items ?? []} loading={isLoading} />
       <Dialog

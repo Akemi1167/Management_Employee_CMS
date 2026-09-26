@@ -50,6 +50,12 @@ export const NAVIGATION: NavGroup[] = [
         icon: Upload,
         permission: PERMISSION.EMPLOYEE_READ,
       },
+      {
+        labelKey: 'nav.walletImport',
+        to: '/employees/wallets/import',
+        icon: CreditCard,
+        permission: PERMISSION.WALLET_WRITE,
+      },
     ],
   },
   {
@@ -160,6 +166,7 @@ export const NAVIGATION: NavGroup[] = [
 
 export const PATH_PERMISSIONS: Array<{ match: string; permission?: string; permissions?: string[] }> = [
   { match: '/', permission: undefined },
+  { match: '/employees/wallets/import', permission: PERMISSION.WALLET_WRITE },
   { match: '/employees/import', permission: PERMISSION.EMPLOYEE_WRITE },
   { match: '/employees', permission: PERMISSION.EMPLOYEE_READ },
   { match: '/employee-sync', permission: PERMISSION.EMPLOYEE_READ },

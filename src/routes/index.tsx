@@ -6,6 +6,7 @@ import { ChangePasswordPage } from '@/pages/auth/change-password-page';
 import { DashboardPage } from '@/pages/dashboard/dashboard-page';
 import { EmployeesListPage } from '@/pages/employees/employees-list-page';
 import { EmployeeImportPage } from '@/pages/employees/employee-import-page';
+import { EmployeeWalletImportPage } from '@/pages/employees/employee-wallet-import-page';
 import { EmployeeDetailPage } from '@/pages/employees/employee-detail-page';
 import { EmployeeSyncDetailPage, EmployeeSyncListPage } from '@/pages/employees/employee-sync-page';
 import { ImportCreatePage, ImportDetailPage, ImportsListPage } from '@/pages/imports/imports-pages';
@@ -34,6 +35,7 @@ export function AppRoutes() {
               <Route index element={<DashboardPage />} />
               <Route path="employees" element={<EmployeesListPage />} />
               <Route path="employees/import" element={<EmployeeImportPage />} />
+              <Route path="employees/wallets/import" element={<EmployeeWalletImportPage />} />
               <Route path="employees/:id" element={<EmployeeDetailPage />} />
               <Route path="employee-sync" element={<EmployeeSyncListPage />} />
               <Route path="employee-sync/:id" element={<EmployeeSyncDetailPage />} />

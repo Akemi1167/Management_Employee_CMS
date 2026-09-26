@@ -162,11 +162,20 @@ export function downloadWalletImportTemplate() {
     {
       name: 'ma vi',
       rows: [
-        ['Mã số thẻ', 'Họ tên', 'Địa chỉ ví', 'Nền tảng', 'Mạng', 'Chủ ví'],
+        [
+          'Mã số thẻ',
+          'Họ tên',
+          'Địa chỉ ví',
+          'ẢNH QR / Mã QR / 二维码',
+          'Nền tảng',
+          'Mạng',
+          'Chủ ví',
+        ],
         [
           'NV001',
           'Nguyen Van A',
           `T${'Q'.repeat(33)}`,
+          '',
           'BINANCE',
           'TRC20',
           'Nguyen Van A',

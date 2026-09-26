@@ -272,7 +272,7 @@
     "importSubmit": "Tải roster",
     "walletImportTitle": "Nhập mã ví hàng loạt",
     "walletImportDescription": "File OA .xlsx hoặc .csv: bắt buộc mã nhân viên và địa chỉ ví. Ảnh QR trong Excel (DISPIMG) được lấy kèm nếu có. Chỉ gán lần đầu; đã có ví thì bỏ qua trừ khi tài khoản là system_admin.",
-    "walletImportHint": "Tiêu đề nhận: Mã số thẻ / Mã nhân viên và Địa chỉ ví. Tùy chọn: Họ tên, Nền tảng, Mạng, Chủ ví, Mã QR.",
+    "walletImportHint": "Tiêu đề nhận: Mã số thẻ / Mã nhân viên và Địa chỉ ví. Cột ẢNH QR / Mã QR: dán ảnh QR vào ô (Excel/WPS). Tùy chọn: Họ tên, Nền tảng, Mạng, Chủ ví.",
     "walletImportReason": "Lý do nhập (tối thiểu 10 ký tự)",
     "walletImportSubmit": "Nhập mã ví",
     "walletImported": "Đã nhập mã ví từ file",

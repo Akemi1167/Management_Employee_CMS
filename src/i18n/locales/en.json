@@ -272,7 +272,7 @@
     "importSubmit": "Upload roster",
     "walletImportTitle": "Bulk wallet import",
     "walletImportDescription": "OA .xlsx or .csv: employee code and wallet address required. QR images in Excel (DISPIMG) are imported when present. First assignment only; existing wallets are skipped unless you are system_admin.",
-    "walletImportHint": "Recognized headers: employee code (Mã số thẻ) and wallet address (Địa chỉ ví). Optional: name, platform, network, owner, QR.",
+    "walletImportHint": "Recognized headers: employee code (Mã số thẻ) and wallet address (Địa chỉ ví). Paste the QR image into the ẢNH QR / Mã QR column (Excel/WPS). Optional: name, platform, network, owner.",
     "walletImportReason": "Import reason (at least 10 characters)",
     "walletImportSubmit": "Import wallets",
     "walletImported": "Wallets imported from file",

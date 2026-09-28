@@ -124,11 +124,29 @@ export function newIdempotencyKey() {
 
 export function moneyText(value: unknown) {
   if (value == null || value === '') return '—';
+
+  let raw = '';
   if (typeof value === 'object') {
     const record = value as { $numberDecimal?: string; toString?: () => string };
-    if (record.$numberDecimal) return record.$numberDecimal;
+    if (record.$numberDecimal) raw = record.$numberDecimal;
+  } else {
+    raw = String(value);
   }
-  return String(value);
+
+  if (!raw || raw === 'null') return '—';
+
+  const normalized = raw.trim();
+  if (!/^-?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(normalized)) return normalized;
+
+  const amount = Number(normalized);
+  if (!Number.isFinite(amount)) return normalized;
+
+  const fraction = normalized.includes('.')
+    ? (normalized.split('.')[1] ?? '').replace(/0+$/, '')
+    : '';
+  const maxFractionDigits = fraction.length > 4 ? 0 : Math.min(4, fraction.length);
+
+  return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: maxFractionDigits }).format(amount);
 }
 
 export function changeId(change: { _id?: unknown; id?: unknown }) {

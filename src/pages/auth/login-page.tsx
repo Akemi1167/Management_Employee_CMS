@@ -71,7 +71,7 @@ export function LoginPage() {
         <div className="flex flex-1 items-center justify-center px-4 pb-16">
           <div className="w-full max-w-md">
             <div className="mb-8 flex flex-col items-center">
-              <BrandLogo variant="slogan" className="mb-5 text-lg" />
+              <BrandLogo size="lg" className="mb-5" />
               {step === 'otp' ? (
                 <p className="text-center text-sm text-[#9aa3b5]">{t('auth.otpSubtitle')}</p>
               ) : null}

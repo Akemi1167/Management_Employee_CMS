@@ -1,21 +1,25 @@
 import { cn } from '@/lib/utils';
 
+const LOGO_SRC = '/yf-global-logo.png';
+
 type BrandLogoProps = {
   className?: string;
-  variant?: 'slogan' | 'mark';
+  size?: 'sm' | 'md' | 'lg' | 'full';
 };
 
-export function BrandLogo({ className, variant = 'slogan' }: BrandLogoProps) {
+const sizeClass = {
+  sm: 'max-h-9 w-auto max-w-[7.5rem]',
+  md: 'max-h-16 w-auto',
+  lg: 'max-h-44 w-auto max-w-full',
+  full: 'h-auto w-full',
+} as const;
+
+export function BrandLogo({ className, size = 'md' }: BrandLogoProps) {
   return (
-    <div className={cn('flex items-center gap-2', className)}>
-      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#16a34a] text-sm font-extrabold text-[#f0fdf4]">
-        HR
-      </span>
-      {variant === 'slogan' ? (
-        <span className="text-sm font-semibold tracking-tight text-[#eef0f6]">
-          CMS Nhân sự
-        </span>
-      ) : null}
-    </div>
+    <img
+      src={LOGO_SRC}
+      alt="YF GLOBAL"
+      className={cn('object-contain', sizeClass[size], className)}
+    />
   );
 }

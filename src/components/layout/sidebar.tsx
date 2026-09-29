@@ -1,4 +1,4 @@
-import { NavLink, useLocation } from 'react-router-dom';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { BrandLogo } from '@/components/BrandLogo';
@@ -24,9 +24,11 @@ export function Sidebar() {
 
   return (
     <aside className="flex h-screen w-56 shrink-0 flex-col border-r border-[#1e2230] bg-[#0a0c10] text-[#c8cdd8]">
-      <div className="border-b border-[#1e2230] px-3 pb-3 pt-4">
-        <BrandLogo variant="slogan" className="mb-2" />
-        <p className="px-1 text-[10px] font-medium tracking-tight text-[#b8bfd0]">
+      <div className="border-b border-[#1e2230]">
+        <Link to="/" className="block px-2 pb-1 pt-3 transition-opacity hover:opacity-90">
+          <BrandLogo size="full" />
+        </Link>
+        <p className="px-3 pb-2.5 text-[10px] font-medium tracking-tight text-[#b8bfd0]">
           {t('common.adminConsole')}
         </p>
       </div>

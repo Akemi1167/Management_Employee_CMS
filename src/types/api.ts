@@ -1,6 +1,8 @@
 export interface ApiErrorBody {
   statusCode: number;
   message?: string | string[];
+  code?: string;
+  sharedWithEmployeeCodes?: string[];
   errors?: unknown;
   requestId?: string;
   timestamp?: string;
@@ -405,6 +407,7 @@ export interface EmployeeWalletImportResult {
     walletOwnedByOther: number;
     employeeNotFound: number;
     imageFailed: number;
+    sharedAccepted: number;
     other: number;
   };
   errors: {

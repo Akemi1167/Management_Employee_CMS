@@ -26,6 +26,16 @@ export function getApiErrorMessage(error: unknown, fallback = 'Đã xảy ra l�
   return fallback;
 }
 
+export function getApiErrorCode(error: unknown) {
+  const code = (error as AxiosError<ApiErrorBody>).response?.data?.code;
+  return typeof code === 'string' && code.trim() ? code : '';
+}
+
+export function getSharedWalletCodes(error: unknown) {
+  const codes = (error as AxiosError<ApiErrorBody>).response?.data?.sharedWithEmployeeCodes;
+  return Array.isArray(codes) ? codes.filter((item): item is string => typeof item === 'string') : [];
+}
+
 export function isUnknownDtoFieldError(error: unknown, field: string) {
   return new RegExp(`property ${field}|${field}.*should not exist`, 'i').test(getApiErrorMessage(error));
 }

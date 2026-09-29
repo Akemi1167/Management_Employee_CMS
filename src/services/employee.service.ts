@@ -85,6 +85,7 @@ export function setEmployeeWallet(
     ownerName?: string;
     reason: string;
     image: File;
+    confirmSharedWallet?: boolean;
   },
 ) {
   const form = new FormData();
@@ -93,6 +94,7 @@ export function setEmployeeWallet(
   form.append('network', input.network);
   if (input.ownerName?.trim()) form.append('ownerName', input.ownerName.trim());
   form.append('reason', input.reason);
+  if (input.confirmSharedWallet) form.append('confirmSharedWallet', 'true');
   form.append('image', input.image);
   return apiPost<{
     id: string;
@@ -121,10 +123,11 @@ export async function importEmployees(file: File) {
   return data;
 }
 
-export async function importEmployeeWallets(file: File, reason: string) {
+export async function importEmployeeWallets(file: File, reason: string, confirmSharedWallets = false) {
   const form = new FormData();
   form.append('file', file);
   form.append('reason', reason);
+  if (confirmSharedWallets) form.append('confirmSharedWallets', 'true');
   const { data } = await apiClient.post<EmployeeWalletImportResult>(
     `${API_ENDPOINTS.EMPLOYEES}/wallets/import`,
     form,

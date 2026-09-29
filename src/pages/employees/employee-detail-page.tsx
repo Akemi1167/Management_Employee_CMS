@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { cardClass, textSubtle } from '@/constants/theme';
 import { PERMISSION } from '@/constants/api-endpoints';
-import { getApiErrorMessage, moneyText } from '@/lib/api-client';
+import { getApiErrorCode, getApiErrorMessage, moneyText } from '@/lib/api-client';
 import { dateInputToIso, formatDate, formatDay, toDateInput } from '@/lib/period';
 import { hasAssignedWallet } from '@/lib/wallet-workflow';
 import {
@@ -590,6 +590,7 @@ function WalletAssignCard({
   const [image, setImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [stepUp, setStepUp] = useState<{ action: string; retry: () => void } | null>(null);
+  const [sharedConfirm, setSharedConfirm] = useState<string | null>(null);
 
   useEffect(() => {
     if (window.location.hash === '#employee-wallet') {
@@ -615,7 +616,7 @@ function WalletAssignCard({
     isAllowedWalletImage(image!);
 
   const save = useMutation({
-    mutationFn: () =>
+    mutationFn: (confirmSharedWallet = false) =>
       setEmployeeWallet(employeeId, {
         address: address.replace(/\s+/g, '').trim(),
         platform,
@@ -623,19 +624,26 @@ function WalletAssignCard({
         ownerName,
         reason: reason.trim(),
         image: image!,
+        confirmSharedWallet,
       }),
     onSuccess: () => {
       setAddress('');
       setOwnerName('');
       setReason('');
       setImage(null);
+      setSharedConfirm(null);
       toast.success(t('employees.walletAssigned'));
       void queryClient.invalidateQueries({ queryKey: ['employee', employeeId] });
     },
-    onError: (error) =>
+    onError: (error) => {
+      if (getApiErrorCode(error) === 'SHARED_WALLET_NEEDS_CONFIRM') {
+        setSharedConfirm(getApiErrorMessage(error));
+        return;
+      }
       runOrStepUp(error, () =>
-        setStepUp({ action: `employee:wallet:${employeeId}`, retry: () => save.mutate() }),
-      ),
+        setStepUp({ action: `employee:wallet:${employeeId}`, retry: () => save.mutate(false) }),
+      );
+    },
   });
 
   return (
@@ -747,7 +755,7 @@ function WalletAssignCard({
               placeholder={t('employees.portalReason')}
             />
           </div>
-          <Button disabled={!canSubmit || save.isPending} onClick={() => save.mutate()}>
+          <Button disabled={!canSubmit || save.isPending} onClick={() => save.mutate(false)}>
             <Wallet className="h-4 w-4" />
             {t(canOverride ? 'employees.overrideWallet' : 'employees.assignWallet')}
           </Button>
@@ -755,6 +763,15 @@ function WalletAssignCard({
       ) : assigned ? null : (
         <p className="text-sm text-[#fbbf24]">{t('employees.walletWriteHint')}</p>
       )}
+      <ConfirmDialog
+        open={Boolean(sharedConfirm)}
+        onClose={() => setSharedConfirm(null)}
+        onConfirm={() => save.mutate(true)}
+        title={t('employees.walletSharedConfirmTitle')}
+        description={sharedConfirm ?? t('employees.walletSharedConfirmBody')}
+        confirmLabel={t('employees.walletSharedConfirmSubmit')}
+        loading={save.isPending}
+      />
       <StepUpDialog
         open={Boolean(stepUp)}
         action={stepUp?.action ?? ''}

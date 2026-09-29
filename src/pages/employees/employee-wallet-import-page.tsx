@@ -8,6 +8,7 @@ import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { StepUpDialog } from '@/components/shared/step-up-dialog';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cardClass } from '@/constants/theme';
@@ -16,6 +17,18 @@ import { downloadWalletImportTemplate } from '@/lib/excel-templates';
 import { importEmployeeWallets } from '@/services/employee.service';
 import type { EmployeeWalletImportResult } from '@/types/api';
 
+const SHARED_WALLET_CODES = new Set(['WALLET_OWNED_BY_OTHER', 'DUPLICATE_WALLET_IN_FILE']);
+const IMAGE_WARNING_CODES = new Set(['IMAGE_MISSING', 'IMAGE_STORE_FAILED']);
+const SHARED_WARNING_CODES = new Set([
+  'WALLET_OWNED_BY_OTHER',
+  'DUPLICATE_WALLET_IN_FILE',
+  'SHARED_WALLET_ACCEPTED',
+]);
+
+function sharedWalletCount(result: EmployeeWalletImportResult) {
+  return result.errors.filter((error) => SHARED_WALLET_CODES.has(error.code)).length;
+}
+
 export function EmployeeWalletImportPage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -23,21 +36,27 @@ export function EmployeeWalletImportPage() {
   const [reason, setReason] = useState('');
   const [result, setResult] = useState<EmployeeWalletImportResult | null>(null);
   const [stepUp, setStepUp] = useState<{ action: string; retry: () => void } | null>(null);
+  const [confirmShared, setConfirmShared] = useState(false);
 
   const importFile = useMutation({
-    mutationFn: () => {
+    mutationFn: (confirmSharedWallets = false) => {
       if (!file) throw new Error(t('imports.file'));
-      return importEmployeeWallets(file, reason.trim());
+      return importEmployeeWallets(file, reason.trim(), confirmSharedWallets);
     },
     onSuccess: (data) => {
       setResult(data);
-      toast.success(t('employees.walletImported'));
+      setConfirmShared(false);
+      if (sharedWalletCount(data) > 0) {
+        toast.message(t('employees.walletImportNeedsConfirm'));
+      } else {
+        toast.success(t('employees.walletImported'));
+      }
       void queryClient.invalidateQueries({ queryKey: ['employees'] });
     },
     onError: (error) => {
       const message = getApiErrorMessage(error);
       if (/xac thuc lai|xác thực lại/i.test(message)) {
-        setStepUp({ action: 'employees:wallets:import', retry: () => importFile.mutate() });
+        setStepUp({ action: 'employees:wallets:import', retry: () => importFile.mutate(false) });
         return;
       }
       toast.error(message);
@@ -64,7 +83,7 @@ export function EmployeeWalletImportPage() {
         className={`${cardClass} space-y-4 p-6`}
         onSubmit={(e) => {
           e.preventDefault();
-          importFile.mutate();
+          importFile.mutate(false);
         }}
       >
         <div className="space-y-1.5">
@@ -110,6 +129,7 @@ export function EmployeeWalletImportPage() {
               walletOwnedByOther: result.summary.walletOwnedByOther,
               employeeNotFound: result.summary.employeeNotFound,
               imageFailed: result.summary.imageFailed ?? 0,
+              sharedAccepted: result.summary.sharedAccepted ?? 0,
               other: result.summary.other,
             })}
           </p>
@@ -119,7 +139,7 @@ export function EmployeeWalletImportPage() {
                 <li
                   key={`${error.rowNumber}-${error.code}-${error.employeeCode ?? ''}`}
                   className={
-                    error.code === 'IMAGE_MISSING' || error.code === 'IMAGE_STORE_FAILED'
+                    IMAGE_WARNING_CODES.has(error.code) || SHARED_WARNING_CODES.has(error.code)
                       ? 'text-[#fbbf24]'
                       : 'text-[#f87171]'
                   }
@@ -133,8 +153,24 @@ export function EmployeeWalletImportPage() {
           ) : (
             <p className="text-[#9aa3b5]">{t('common.noData')}</p>
           )}
+          {sharedWalletCount(result) > 0 ? (
+            <Button type="button" variant="outline" disabled={importFile.isPending} onClick={() => setConfirmShared(true)}>
+              {t('employees.walletImportConfirmShared')}
+            </Button>
+          ) : null}
         </div>
       ) : null}
+      <ConfirmDialog
+        open={confirmShared}
+        onClose={() => setConfirmShared(false)}
+        onConfirm={() => importFile.mutate(true)}
+        title={t('employees.walletSharedConfirmTitle')}
+        description={t('employees.walletImportConfirmSharedBody', {
+          count: result ? sharedWalletCount(result) : 0,
+        })}
+        confirmLabel={t('employees.walletSharedConfirmSubmit')}
+        loading={importFile.isPending}
+      />
       <StepUpDialog
         open={Boolean(stepUp)}
         action={stepUp?.action ?? ''}

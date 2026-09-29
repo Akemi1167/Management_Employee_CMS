@@ -109,13 +109,21 @@ export function EmployeeWalletImportPage() {
               duplicateInFile: result.summary.duplicateInFile,
               walletOwnedByOther: result.summary.walletOwnedByOther,
               employeeNotFound: result.summary.employeeNotFound,
+              imageFailed: result.summary.imageFailed ?? 0,
               other: result.summary.other,
             })}
           </p>
           {result.errors.length ? (
-            <ul className="space-y-1 text-[#f87171]">
+            <ul className="space-y-1">
               {result.errors.map((error) => (
-                <li key={`${error.rowNumber}-${error.code}-${error.employeeCode ?? ''}`}>
+                <li
+                  key={`${error.rowNumber}-${error.code}-${error.employeeCode ?? ''}`}
+                  className={
+                    error.code === 'IMAGE_MISSING' || error.code === 'IMAGE_STORE_FAILED'
+                      ? 'text-[#fbbf24]'
+                      : 'text-[#f87171]'
+                  }
+                >
                   {t('imports.row')} {error.rowNumber}
                   {error.employeeCode ? ` (${error.employeeCode})` : ''}
                   {error.addressMasked ? ` · ${error.addressMasked}` : ''}: {error.message}

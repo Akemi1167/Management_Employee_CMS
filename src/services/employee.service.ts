@@ -128,6 +128,7 @@ export async function importEmployeeWallets(file: File, reason: string) {
   const { data } = await apiClient.post<EmployeeWalletImportResult>(
     `${API_ENDPOINTS.EMPLOYEES}/wallets/import`,
     form,
+    { timeout: 180_000 },
   );
   return data;
 }

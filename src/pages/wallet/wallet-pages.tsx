@@ -389,14 +389,18 @@ function WalletRequestImagePreview({
 }) {
   const { t } = useTranslation();
   const [url, setUrl] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     if (!hasImage) {
       setUrl(null);
+      setFailed(false);
       return;
     }
     let objectUrl: string | null = null;
     let cancelled = false;
+    setUrl(null);
+    setFailed(false);
     void fetchWalletRequestImage(requestId)
       .then((blob) => {
         if (cancelled) return;
@@ -404,7 +408,7 @@ function WalletRequestImagePreview({
         setUrl(objectUrl);
       })
       .catch(() => {
-        if (!cancelled) setUrl(null);
+        if (!cancelled) setFailed(true);
       });
     return () => {
       cancelled = true;
@@ -414,6 +418,10 @@ function WalletRequestImagePreview({
 
   if (!hasImage) {
     return <p className="text-sm text-[#b8bfd0]">{t('employees.walletImageMissing')}</p>;
+  }
+
+  if (failed) {
+    return <p className="text-sm text-[#fbbf24]">{t('employees.walletImageGone')}</p>;
   }
 
   if (!url) {

@@ -404,6 +404,7 @@ export interface EmployeeWalletImportResult {
     duplicateInFile: number;
     walletOwnedByOther: number;
     employeeNotFound: number;
+    imageFailed: number;
     other: number;
   };
   errors: {

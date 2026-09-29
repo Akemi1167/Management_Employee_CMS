@@ -92,7 +92,8 @@ apiClient.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    if ((status ?? 0) >= 500 && error.response?.data?.message) {
+    const isBlobRequest = error.config?.responseType === 'blob';
+    if ((status ?? 0) >= 500 && !isBlobRequest && error.response?.data?.message) {
       toast.error(error.response.data.message);
     }
 

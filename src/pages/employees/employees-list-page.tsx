@@ -6,6 +6,7 @@ import { Search } from 'lucide-react';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { DataTable, type Column } from '@/components/shared/data-table';
+import { EmployeeSuggestInput } from '@/components/shared/employee-suggest-input';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -51,11 +52,13 @@ export function EmployeesListPage() {
       }),
   });
 
-  const applyFilters = (status = employmentStatus) => {
+  const applyFilters = (status = employmentStatus, nextQuery = query) => {
+    const trimmed = nextQuery.trim();
     setPage(1);
+    setQuery(trimmed);
     setEmploymentStatus(status);
     setApplied({
-      query: query.trim(),
+      query: trimmed,
       departmentCode: departmentCode.trim(),
       employmentStatus: status,
     });
@@ -145,11 +148,13 @@ export function EmployeesListPage() {
         }
       />
       <div className={`${cardClass} mb-4 flex flex-wrap gap-2 p-4`}>
-        <Input
+        <EmployeeSuggestInput
           className="max-w-xs"
           placeholder={t('employees.searchPlaceholder')}
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={setQuery}
+          onSubmit={() => applyFilters()}
+          onSelect={(employee) => applyFilters(employmentStatus, employee.fullName)}
         />
         <Input
           className="max-w-[180px]"

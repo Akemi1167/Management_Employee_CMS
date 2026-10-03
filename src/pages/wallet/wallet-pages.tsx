@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { DataTable, type Column } from '@/components/shared/data-table';
+import { PeriodSelect } from '@/components/shared/period-select';
 import { EmployeeLink } from '@/components/shared/employee-link';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { StepUpDialog } from '@/components/shared/step-up-dialog';
@@ -179,7 +180,7 @@ export function WalletRequestsPage() {
           >
             <div className="space-y-1.5">
               <Label>{t('common.period')}</Label>
-              <Input value={period} onChange={(e) => setPeriod(e.target.value)} placeholder="YYYY-MM" required />
+              <PeriodSelect required value={period} onChange={setPeriod} />
             </div>
             <div className="space-y-1.5">
               <Label>{t('wallet.note')}</Label>

@@ -7,6 +7,8 @@ import { Download } from 'lucide-react';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { DataTable, type Column } from '@/components/shared/data-table';
+import { FilterField, FilterGrid } from '@/components/shared/filter-bar';
+import { PeriodSelect } from '@/components/shared/period-select';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { CreateButton } from '@/components/shared/create-button';
 import { Button } from '@/components/ui/button';
@@ -91,22 +93,30 @@ export function ImportsListPage() {
           </CreateButton>
         }
       />
-      <div className={`${cardClass} mb-4 flex flex-wrap gap-2 p-4`}>
-        <Select value={dataType} onChange={(e) => setDataType(e.target.value)}>
-          <option value="">{t('common.all')}</option>
-          <option value="ATTENDANCE">{t('dataType.ATTENDANCE')}</option>
-          <option value="PENALTY">{t('dataType.PENALTY')}</option>
-          <option value="PAYROLL">{t('dataType.PAYROLL')}</option>
-        </Select>
-        <Input className="max-w-[140px]" placeholder="YYYY-MM" value={period} onChange={(e) => setPeriod(e.target.value)} />
-        <Select value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="">{t('common.all')}</option>
-          {['UPLOADED', 'VALIDATED', 'PENDING_APPROVAL', 'APPROVED', 'PUBLISHED', 'REJECTED'].map((value) => (
-            <option key={value} value={value}>
-              {t(`workflow.${value}`)}
-            </option>
-          ))}
-        </Select>
+      <div className={`${cardClass} mb-4 p-4`}>
+        <FilterGrid>
+          <FilterField label={t('common.period')}>
+            <PeriodSelect allowAll value={period} onChange={setPeriod} />
+          </FilterField>
+          <FilterField label={t('common.dataType')}>
+            <Select value={dataType} onChange={(e) => setDataType(e.target.value)}>
+              <option value="">{t('common.all')}</option>
+              <option value="ATTENDANCE">{t('dataType.ATTENDANCE')}</option>
+              <option value="PENALTY">{t('dataType.PENALTY')}</option>
+              <option value="PAYROLL">{t('dataType.PAYROLL')}</option>
+            </Select>
+          </FilterField>
+          <FilterField label={t('common.status')}>
+            <Select value={status} onChange={(e) => setStatus(e.target.value)}>
+              <option value="">{t('common.all')}</option>
+              {['UPLOADED', 'VALIDATED', 'PENDING_APPROVAL', 'APPROVED', 'PUBLISHED', 'REJECTED'].map((value) => (
+                <option key={value} value={value}>
+                  {t(`workflow.${value}`)}
+                </option>
+              ))}
+            </Select>
+          </FilterField>
+        </FilterGrid>
       </div>
       <DataTable
         columns={columns}
@@ -169,7 +179,7 @@ export function ImportCreatePage() {
         </div>
         <div className="space-y-1.5">
           <Label>{t('common.period')}</Label>
-          <Input value={period} onChange={(e) => setPeriod(e.target.value)} placeholder="YYYY-MM" required />
+          <PeriodSelect required value={period} onChange={setPeriod} />
         </div>
         <div className="space-y-1.5">
           <Label>{t('imports.template')}</Label>

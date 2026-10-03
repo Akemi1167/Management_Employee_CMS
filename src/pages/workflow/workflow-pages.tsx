@@ -6,6 +6,8 @@ import { toast } from 'sonner';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { DataTable, type Column } from '@/components/shared/data-table';
+import { FilterField, FilterGrid } from '@/components/shared/filter-bar';
+import { PeriodSelect } from '@/components/shared/period-select';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { StepUpDialog } from '@/components/shared/step-up-dialog';
 import { WipePeriodButton } from '@/components/shared/wipe-period-dialog';
@@ -120,14 +122,20 @@ export function ApprovalsListPage() {
   return (
     <PageContainer>
       <PageHeader title={t('approvals.title')} description={t('approvals.description')} />
-      <div className={`${cardClass} mb-4 flex flex-wrap gap-2 p-4`}>
-        <Select value={dataType} onChange={(e) => setDataType(e.target.value)}>
-          <option value="">{t('common.all')}</option>
-          <option value="ATTENDANCE">{t('dataType.ATTENDANCE')}</option>
-          <option value="PENALTY">{t('dataType.PENALTY')}</option>
-          <option value="PAYROLL">{t('dataType.PAYROLL')}</option>
-        </Select>
-        <Input className="max-w-[140px]" placeholder="YYYY-MM" value={period} onChange={(e) => setPeriod(e.target.value)} />
+      <div className={`${cardClass} mb-4 p-4`}>
+        <FilterGrid>
+          <FilterField label={t('common.period')}>
+            <PeriodSelect allowAll value={period} onChange={setPeriod} />
+          </FilterField>
+          <FilterField label={t('common.dataType')}>
+            <Select value={dataType} onChange={(e) => setDataType(e.target.value)}>
+              <option value="">{t('common.all')}</option>
+              <option value="ATTENDANCE">{t('dataType.ATTENDANCE')}</option>
+              <option value="PENALTY">{t('dataType.PENALTY')}</option>
+              <option value="PAYROLL">{t('dataType.PAYROLL')}</option>
+            </Select>
+          </FilterField>
+        </FilterGrid>
       </div>
       <DataTable columns={columns} data={data?.items ?? []} loading={isLoading} />
       <Dialog
@@ -286,22 +294,27 @@ export function PublishingPage() {
           </Button>
         </div>
       ) : null}
-      <div className={`${cardClass} mb-4 flex flex-wrap gap-2 p-4`}>
-        <Input
-          className="max-w-[140px]"
-          placeholder="YYYY-MM"
-          value={periodFilter}
-          onChange={(e) => setPeriodFilter(e.target.value)}
-        />
-        <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-          <option value="">{t('common.all')}</option>
-          {['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'PUBLISHED', 'LOCKED', 'CANCELLED'].map((value) => (
-            <option key={value} value={value}>
-              {t(`periodStatus.${value}`)}
-            </option>
-          ))}
-        </Select>
-        {canWipe ? <WipePeriodButton period={periodFilter || previousPeriod()} /> : null}
+      <div className={`${cardClass} mb-4 p-4`}>
+        <FilterGrid>
+          <FilterField label={t('common.period')}>
+            <PeriodSelect allowAll value={periodFilter} onChange={setPeriodFilter} />
+          </FilterField>
+          <FilterField label={t('common.status')}>
+            <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+              <option value="">{t('common.all')}</option>
+              {['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'PUBLISHED', 'LOCKED', 'CANCELLED'].map((value) => (
+                <option key={value} value={value}>
+                  {t(`periodStatus.${value}`)}
+                </option>
+              ))}
+            </Select>
+          </FilterField>
+          {canWipe ? (
+            <div className="flex items-end">
+              <WipePeriodButton period={periodFilter || previousPeriod()} />
+            </div>
+          ) : null}
+        </FilterGrid>
       </div>
       <DataTable columns={columns} data={data?.items ?? []} loading={isLoading} />
       <Dialog

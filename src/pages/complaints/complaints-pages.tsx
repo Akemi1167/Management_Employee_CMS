@@ -6,6 +6,8 @@ import { toast } from 'sonner';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { DataTable, type Column } from '@/components/shared/data-table';
+import { FilterField, FilterGrid } from '@/components/shared/filter-bar';
+import { PeriodSelect } from '@/components/shared/period-select';
 import { EmployeeLink } from '@/components/shared/employee-link';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { Button } from '@/components/ui/button';
@@ -155,32 +157,41 @@ export function ComplaintsListPage() {
   return (
     <PageContainer>
       <PageHeader title={t('complaints.title')} description={t('complaints.description')} />
-      <div className={`${cardClass} mb-4 flex flex-wrap gap-2 p-4`}>
-        <Select value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="">{t('common.all')}</option>
-          {['NEW', 'IN_PROGRESS', 'WAITING_INFO', 'ADJUSTED', 'REJECTED', 'CLOSED'].map((value) => (
-            <option key={value} value={value}>
-              {t(`complaintStatus.${value}`)}
-            </option>
-          ))}
-        </Select>
-        <Select value={subjectType} onChange={(e) => setSubjectType(e.target.value)}>
-          <option value="">{t('common.all')}</option>
-          <option value="ATTENDANCE">{t('dataType.ATTENDANCE')}</option>
-          <option value="PENALTY">{t('dataType.PENALTY')}</option>
-          <option value="PAYROLL">{t('dataType.PAYROLL')}</option>
-        </Select>
-        <Input className="max-w-[140px]" placeholder="YYYY-MM" value={period} onChange={(e) => setPeriod(e.target.value)} />
-        <Input
-          className="max-w-[160px]"
-          placeholder={t('employees.code')}
-          value={employeeCode}
-          onChange={(e) => setEmployeeCode(e.target.value)}
-        />
-        <label className="flex items-center gap-2 text-sm text-[#b8bfd0]">
-          <input type="checkbox" checked={assignedToMe} onChange={(e) => setAssignedToMe(e.target.checked)} />
-          {t('complaints.assignedToMe')}
-        </label>
+      <div className={`${cardClass} mb-4 p-4`}>
+        <FilterGrid>
+          <FilterField label={t('common.period')}>
+            <PeriodSelect allowAll value={period} onChange={setPeriod} />
+          </FilterField>
+          <FilterField label={t('common.status')}>
+            <Select value={status} onChange={(e) => setStatus(e.target.value)}>
+              <option value="">{t('common.all')}</option>
+              {['NEW', 'IN_PROGRESS', 'WAITING_INFO', 'ADJUSTED', 'REJECTED', 'CLOSED'].map((value) => (
+                <option key={value} value={value}>
+                  {t(`complaintStatus.${value}`)}
+                </option>
+              ))}
+            </Select>
+          </FilterField>
+          <FilterField label={t('common.dataType')}>
+            <Select value={subjectType} onChange={(e) => setSubjectType(e.target.value)}>
+              <option value="">{t('common.all')}</option>
+              <option value="ATTENDANCE">{t('dataType.ATTENDANCE')}</option>
+              <option value="PENALTY">{t('dataType.PENALTY')}</option>
+              <option value="PAYROLL">{t('dataType.PAYROLL')}</option>
+            </Select>
+          </FilterField>
+          <FilterField label={t('employees.code')}>
+            <Input
+              placeholder={t('employees.code')}
+              value={employeeCode}
+              onChange={(e) => setEmployeeCode(e.target.value)}
+            />
+          </FilterField>
+          <label className="flex h-9 items-center gap-2 self-end text-sm text-[#b8bfd0]">
+            <input type="checkbox" checked={assignedToMe} onChange={(e) => setAssignedToMe(e.target.checked)} />
+            {t('complaints.assignedToMe')}
+          </label>
+        </FilterGrid>
       </div>
       <DataTable
         columns={columns}

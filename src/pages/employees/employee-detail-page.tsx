@@ -7,6 +7,8 @@ import { CalendarCheck, ClipboardList, CreditCard, KeyRound, Pencil, Trash2, Wal
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { DataTable, type Column } from '@/components/shared/data-table';
+import { FilterField, FilterGrid } from '@/components/shared/filter-bar';
+import { PeriodSelect } from '@/components/shared/period-select';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { StepUpDialog } from '@/components/shared/step-up-dialog';
 import { Button } from '@/components/ui/button';
@@ -171,30 +173,29 @@ export function EmployeeDetailPage() {
           <PortalAccountCard employeeId={id} account={data.portalAccount ?? null} />
 
           <div className={`${cardClass} mb-4 p-4`}>
-            <div className="flex flex-wrap items-center gap-2">
-              <Input
-                className="max-w-[140px]"
-                value={period}
-                onChange={(e) => update({ period: e.target.value })}
-                placeholder="YYYY-MM"
-              />
-              {has(PERMISSION.COMPLAINT_READ) ? (
-                <Button variant="outline" asChild>
-                  <Link to={`/complaints?employeeCode=${encodeURIComponent(data.employeeCode)}`}>
-                    <ClipboardList className="h-4 w-4" />
-                    {t('employees.viewComplaints')}
-                  </Link>
-                </Button>
-              ) : null}
-              {has(PERMISSION.WALLET_READ) ? (
-                <Button variant="outline" asChild>
-                  <Link to={`/wallet?employeeCode=${encodeURIComponent(data.employeeCode)}`}>
-                    <CreditCard className="h-4 w-4" />
-                    {t('employees.viewWallet')}
-                  </Link>
-                </Button>
-              ) : null}
-            </div>
+            <FilterGrid>
+              <FilterField label={t('common.period')}>
+                <PeriodSelect allowAll value={period} onChange={(value) => update({ period: value })} />
+              </FilterField>
+              <div className="flex flex-wrap items-end gap-2">
+                {has(PERMISSION.COMPLAINT_READ) ? (
+                  <Button variant="outline" asChild>
+                    <Link to={`/complaints?employeeCode=${encodeURIComponent(data.employeeCode)}`}>
+                      <ClipboardList className="h-4 w-4" />
+                      {t('employees.viewComplaints')}
+                    </Link>
+                  </Button>
+                ) : null}
+                {has(PERMISSION.WALLET_READ) ? (
+                  <Button variant="outline" asChild>
+                    <Link to={`/wallet?employeeCode=${encodeURIComponent(data.employeeCode)}`}>
+                      <CreditCard className="h-4 w-4" />
+                      {t('employees.viewWallet')}
+                    </Link>
+                  </Button>
+                ) : null}
+              </div>
+            </FilterGrid>
             <p className="mt-3 text-xs text-[#9aa3b5]">{t('source.hint')}</p>
           </div>
 

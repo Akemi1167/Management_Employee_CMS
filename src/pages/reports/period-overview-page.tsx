@@ -6,10 +6,12 @@ import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { DataTable, type Column } from '@/components/shared/data-table';
 import { EmployeeLink } from '@/components/shared/employee-link';
+import { EmployeeSuggestInput } from '@/components/shared/employee-suggest-input';
+import { FilterField, FilterGrid } from '@/components/shared/filter-bar';
+import { PeriodSelect } from '@/components/shared/period-select';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { WipePeriodButton } from '@/components/shared/wipe-period-dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { PERMISSION } from '@/constants/api-endpoints';
 import { cardClass, textBody, textSubtle, textTitle } from '@/constants/theme';
@@ -119,35 +121,41 @@ export function PeriodOverviewPage() {
             {t('periodOverview.tabs.confirmations')}
           </TabButton>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Input
-            className="max-w-[140px]"
-            value={period}
-            onChange={(e) => update({ period: e.target.value })}
-            placeholder="YYYY-MM"
-          />
+        <FilterGrid>
+          <FilterField label={t('common.period')}>
+            <PeriodSelect value={period} onChange={(value) => update({ period: value })} />
+          </FilterField>
           {tab === 'coverage' ? (
-            <Select value={source} onChange={(e) => update({ source: e.target.value })}>
-              <option value="staging">{t('source.staging')}</option>
-              <option value="published">{t('source.published')}</option>
-            </Select>
+            <FilterField label={t('source.label')}>
+              <Select value={source} onChange={(e) => update({ source: e.target.value })}>
+                <option value="staging">{t('source.staging')}</option>
+                <option value="published">{t('source.published')}</option>
+              </Select>
+            </FilterField>
           ) : null}
-          <Select value={view} onChange={(e) => update({ view: e.target.value })}>
-            <option value="all">{t('periodOverview.views.all')}</option>
-            {tab === 'coverage' ? (
-              <option value="missing">{t('periodOverview.views.missing')}</option>
-            ) : (
-              <option value="unconfirmed">{t('periodOverview.views.unconfirmed')}</option>
-            )}
-          </Select>
-          <Input
-            className="max-w-[200px]"
-            value={query}
-            onChange={(e) => update({ query: e.target.value })}
-            placeholder={t('periodOverview.search')}
-          />
-          {canWipe ? <WipePeriodButton period={period} /> : null}
-        </div>
+          <FilterField label={t('common.filter')}>
+            <Select value={view} onChange={(e) => update({ view: e.target.value })}>
+              <option value="all">{t('periodOverview.views.all')}</option>
+              {tab === 'coverage' ? (
+                <option value="missing">{t('periodOverview.views.missing')}</option>
+              ) : (
+                <option value="unconfirmed">{t('periodOverview.views.unconfirmed')}</option>
+              )}
+            </Select>
+          </FilterField>
+          <FilterField label={t('common.search')}>
+            <EmployeeSuggestInput
+              value={query}
+              onChange={(value) => update({ query: value })}
+              placeholder={t('periodOverview.search')}
+            />
+          </FilterField>
+          {canWipe ? (
+            <div className="flex items-end">
+              <WipePeriodButton period={period} />
+            </div>
+          ) : null}
+        </FilterGrid>
         <p className={`mt-3 text-xs ${textSubtle}`}>
           {tab === 'coverage' ? t('periodOverview.coverageHint') : t('periodOverview.confirmHint')}
         </p>

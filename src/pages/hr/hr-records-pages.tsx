@@ -7,6 +7,8 @@ import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { DataTable, type Column } from '@/components/shared/data-table';
 import { EmployeeLink } from '@/components/shared/employee-link';
+import { FilterField, FilterGrid } from '@/components/shared/filter-bar';
+import { PeriodSelect } from '@/components/shared/period-select';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
@@ -16,7 +18,7 @@ import { Select } from '@/components/ui/select';
 import { cardClass } from '@/constants/theme';
 import { PERMISSION } from '@/constants/api-endpoints';
 import { getApiErrorMessage, moneyText } from '@/lib/api-client';
-import { previousPeriod } from '@/lib/period';
+import { ALL_PERIODS, periodFilterValue, previousPeriod } from '@/lib/period';
 import { fetchEmployee } from '@/services/employee.service';
 import {
   fetchAttendance,
@@ -104,8 +106,7 @@ function FilterBar() {
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const employeeId = searchParams.get('employeeId') ?? '';
-  const periodParam = searchParams.get('period');
-  const period = periodParam ?? (employeeId ? '' : previousPeriod());
+  const period = periodFilterValue(searchParams.get('period'), employeeId ? '' : previousPeriod());
   const source = searchParams.get('source') ?? 'staging';
   const status = searchParams.get('status') ?? '';
   const importSessionId = searchParams.get('importSessionId') ?? '';
@@ -120,42 +121,45 @@ function FilterBar() {
   };
 
   return (
-    <div className="mb-4">
-      <div className={`${cardClass} flex flex-wrap gap-2 p-4`}>
-        <Input
-          className="max-w-[140px]"
-          value={period}
-          onChange={(e) => update({ period: e.target.value })}
-          placeholder="YYYY-MM"
-        />
-        <Select value={source} onChange={(e) => update({ source: e.target.value })}>
-          <option value="staging">{t('source.staging')}</option>
-          <option value="published">{t('source.published')}</option>
-        </Select>
-        {source === 'staging' ? (
-          <Select value={status} onChange={(e) => update({ status: e.target.value })}>
-            <option value="">{t('common.all')}</option>
-            {WORKFLOW_FILTERS.map((value) => (
-              <option key={value} value={value}>
-                {t(`workflow.${value}`)}
-              </option>
-            ))}
+    <div className={`${cardClass} mb-4 p-4`}>
+      <FilterGrid>
+        <FilterField label={t('common.period')}>
+          <PeriodSelect allowAll value={period} onChange={(value) => update({ period: value || ALL_PERIODS })} />
+        </FilterField>
+        <FilterField label={t('source.label')}>
+          <Select value={source} onChange={(e) => update({ source: e.target.value })}>
+            <option value="staging">{t('source.staging')}</option>
+            <option value="published">{t('source.published')}</option>
           </Select>
+        </FilterField>
+        {source === 'staging' ? (
+          <FilterField label={t('common.status')}>
+            <Select value={status} onChange={(e) => update({ status: e.target.value })}>
+              <option value="">{t('common.all')}</option>
+              {WORKFLOW_FILTERS.map((value) => (
+                <option key={value} value={value}>
+                  {t(`workflow.${value}`)}
+                </option>
+              ))}
+            </Select>
+          </FilterField>
         ) : null}
-        <Input
-          className="max-w-[240px]"
-          value={importSessionId}
-          onChange={(e) => update({ importSessionId: e.target.value.trim() })}
-          placeholder={t('imports.sessionId')}
-        />
-        <Input
-          className="max-w-[240px]"
-          value={employeeId}
-          onChange={(e) => update({ employeeId: e.target.value.trim() })}
-          placeholder={t('employees.idFilter')}
-        />
-      </div>
-      <p className="mt-2 text-xs text-[#9aa3b5]">{t('source.hint')}</p>
+        <FilterField label={t('imports.sessionId')}>
+          <Input
+            value={importSessionId}
+            onChange={(e) => update({ importSessionId: e.target.value.trim() })}
+            placeholder={t('imports.sessionId')}
+          />
+        </FilterField>
+        <FilterField label={t('employees.idFilter')}>
+          <Input
+            value={employeeId}
+            onChange={(e) => update({ employeeId: e.target.value.trim() })}
+            placeholder={t('employees.idFilter')}
+          />
+        </FilterField>
+      </FilterGrid>
+      <p className="mt-3 text-xs text-[#9aa3b5]">{t('source.hint')}</p>
     </div>
   );
 }
@@ -163,9 +167,8 @@ function FilterBar() {
 function useHrFilters() {
   const [searchParams] = useSearchParams();
   const [page, setPage] = useState(1);
-  const periodParam = searchParams.get('period');
   const employeeId = searchParams.get('employeeId') ?? '';
-  const period = periodParam ?? (employeeId ? '' : previousPeriod());
+  const period = periodFilterValue(searchParams.get('period'), employeeId ? '' : previousPeriod());
   const source = searchParams.get('source') ?? 'staging';
   const status = searchParams.get('status') ?? '';
   const importSessionId = searchParams.get('importSessionId') ?? '';

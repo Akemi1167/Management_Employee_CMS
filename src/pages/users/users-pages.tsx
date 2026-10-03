@@ -48,9 +48,9 @@ import {
   enableUserMfa,
   fetchUser,
   fetchUsers,
-  resetUserPassword,
   updateUser,
 } from '@/services/user.service';
+import { UserSecurityPanel } from '@/pages/users/user-security-panel';
 import { useAuthStore } from '@/stores/auth-store';
 import type { AdminUser } from '@/types/api';
 
@@ -172,7 +172,6 @@ function UserForm({ existing }: { existing?: AdminUser }) {
   const [mfaEnabled, setMfaEnabled] = useState(existing?.mfaEnabled ?? false);
   const [disableReason, setDisableReason] = useState('');
   const [enableReason, setEnableReason] = useState('');
-  const [resetReason, setResetReason] = useState('');
   const [tempPassword, setTempPassword] = useState('');
   const [showExtras, setShowExtras] = useState(() => (existing?.extraPermissions.length ?? 0) > 0);
   const [showEffective, setShowEffective] = useState(false);
@@ -231,9 +230,7 @@ function UserForm({ existing }: { existing?: AdminUser }) {
   const save = useMutation({
     mutationFn: async () => {
       if (existing && isSelf) {
-        const updated = await updateUser(existing.id, { email, fullName });
-        await syncMfaIfNeeded(existing.id, existing.mfaEnabled);
-        return updated;
+        return updateUser(existing.id, { email, fullName });
       }
       if (roles.length === 0) {
         throw new Error(t('users.rolesRequired'));
@@ -255,9 +252,7 @@ function UserForm({ existing }: { existing?: AdminUser }) {
         },
       };
       if (existing) {
-        const updated = await updateUser(existing.id, body);
-        await syncMfaIfNeeded(existing.id, existing.mfaEnabled);
-        return updated;
+        return updateUser(existing.id, body);
       }
       const created = await createUser({ ...body, username });
       await syncMfaIfNeeded(created.user.id);
@@ -302,20 +297,6 @@ function UserForm({ existing }: { existing?: AdminUser }) {
     onError: (error) =>
       runOrStepUp(error, () =>
         setStepUp({ action: `user:disable:${existing?.id}`, retry: () => enable.mutate() }),
-      ),
-  });
-
-  const resetPassword = useMutation({
-    mutationFn: () => resetUserPassword(existing!.id, resetReason),
-    onSuccess: (result) => {
-      setTempPassword(result.temporaryPassword);
-      toast.success(t('users.passwordReset'));
-      void queryClient.invalidateQueries({ queryKey: ['cms-users'] });
-      void queryClient.invalidateQueries({ queryKey: ['cms-user', existing?.id] });
-    },
-    onError: (error) =>
-      runOrStepUp(error, () =>
-        setStepUp({ action: `user:update:${existing?.id}`, retry: () => resetPassword.mutate() }),
       ),
   });
 
@@ -390,13 +371,15 @@ function UserForm({ existing }: { existing?: AdminUser }) {
               />
             </div>
           </div>
-          <div className="flex items-start justify-between gap-4 rounded-lg border border-[#2a3040] bg-[#1a1e28]/50 px-3 py-3">
-            <div>
-              <p className="text-sm font-medium text-[#eef0f6]">{t('users.mfa')}</p>
-              <p className={cn('mt-1 text-xs', textSubtle)}>{t('users.mfaHint')}</p>
+          {!existing ? (
+            <div className="flex items-start justify-between gap-4 rounded-lg border border-[#2a3040] bg-[#1a1e28]/50 px-3 py-3">
+              <div>
+                <p className="text-sm font-medium text-[#eef0f6]">{t('users.mfa')}</p>
+                <p className={cn('mt-1 text-xs', textSubtle)}>{t('users.mfaHint')}</p>
+              </div>
+              <Switch checked={mfaEnabled} onCheckedChange={setMfaEnabled} />
             </div>
-            <Switch checked={mfaEnabled} onCheckedChange={setMfaEnabled} />
-          </div>
+          ) : null}
         </section>
 
         <section className={`${cardClass} space-y-4 p-6`}>
@@ -655,17 +638,6 @@ function UserForm({ existing }: { existing?: AdminUser }) {
               </Button>
             </div>
           )}
-          <div className="space-y-3">
-            <Label>{t('users.resetReason')}</Label>
-            <Input value={resetReason} onChange={(e) => setResetReason(e.target.value)} />
-            <Button
-              variant="outline"
-              disabled={resetReason.length < 10 || resetPassword.isPending}
-              onClick={() => resetPassword.mutate()}
-            >
-              {t('users.resetPassword')}
-            </Button>
-          </div>
         </div>
       ) : null}
       <StepUpDialog
@@ -715,7 +687,14 @@ export function UserDetailPage() {
           </Button>
         }
       />
-      {data ? <UserForm existing={data} /> : <p className="text-sm text-[#b8bfd0]">{t('common.loading')}</p>}
+      {data ? (
+        <>
+          <UserForm existing={data} />
+          <UserSecurityPanel user={data} />
+        </>
+      ) : (
+        <p className="text-sm text-[#b8bfd0]">{t('common.loading')}</p>
+      )}
     </PageContainer>
   );
 }

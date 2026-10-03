@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
@@ -22,11 +23,12 @@ function toIso(value: string, endOfDay = false) {
 
 export function AuditListPage() {
   const { t } = useTranslation();
+  const [searchParams] = useSearchParams();
   const [action, setAction] = useState('');
   const [result, setResult] = useState('');
   const [resourceType, setResourceType] = useState('');
   const [resourceId, setResourceId] = useState('');
-  const [actorUserId, setActorUserId] = useState('');
+  const [actorUserId, setActorUserId] = useState(searchParams.get('actorUserId') ?? '');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [page, setPage] = useState(1);

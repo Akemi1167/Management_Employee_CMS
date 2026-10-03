@@ -33,6 +33,18 @@ export function resetUserPassword(id: string, reason: string) {
   );
 }
 
+export function setUserPassword(
+  id: string,
+  body: {
+    newPassword: string;
+    confirmPassword: string;
+    reason: string;
+    mustChangePassword?: boolean;
+  },
+) {
+  return apiPost<AdminUser>(`${API_ENDPOINTS.USERS}/${id}/password/change`, body);
+}
+
 export function disableUserMfa(id: string, reason: string) {
   return apiPost<AdminUser>(`${API_ENDPOINTS.USERS}/${id}/mfa/disable`, { reason });
 }

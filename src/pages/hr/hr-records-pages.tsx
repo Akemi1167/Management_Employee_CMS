@@ -17,6 +17,7 @@ import { cardClass } from '@/constants/theme';
 import { PERMISSION } from '@/constants/api-endpoints';
 import { getApiErrorMessage, moneyText } from '@/lib/api-client';
 import { previousPeriod } from '@/lib/period';
+import { fetchEmployee } from '@/services/employee.service';
 import {
   fetchAttendance,
   fetchAttendanceRecord,
@@ -43,6 +44,60 @@ const WORKFLOW_FILTERS: WorkflowStatus[] = [
 
 function compactFields(form: Record<string, string>) {
   return Object.fromEntries(Object.entries(form).filter(([, value]) => value.trim() !== ''));
+}
+
+const OBJECT_ID = /^[a-f0-9]{24}$/i;
+
+function readableCode(code?: string | null) {
+  if (!code || OBJECT_ID.test(code)) return null;
+  return code;
+}
+
+type NamedEmployeeRow = {
+  employeeId: string | null;
+  employeeCode?: string | null;
+  employeeName?: string | null;
+};
+
+function useEmployeeNames(rows: NamedEmployeeRow[]) {
+  const canRead = useAuthStore((s) => s.hasPermission(PERMISSION.EMPLOYEE_READ));
+  const missing = [
+    ...new Set(
+      rows
+        .filter((row) => !row.employeeName?.trim() && row.employeeId)
+        .map((row) => row.employeeId as string),
+    ),
+  ].sort();
+
+  return useQuery({
+    queryKey: ['employee-names', missing],
+    enabled: canRead && missing.length > 0,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const entries = await Promise.all(
+        missing.map(async (id) => {
+          try {
+            const employee = await fetchEmployee(id);
+            return [id, employee.fullName] as const;
+          } catch {
+            return [id, null] as const;
+          }
+        }),
+      );
+      return new Map(entries);
+    },
+  });
+}
+
+function employeeDisplayName(
+  row: NamedEmployeeRow,
+  names: Map<string, string | null> | undefined,
+  loading: boolean,
+) {
+  const fromRecord = row.employeeName?.trim();
+  const fromDirectory = row.employeeId ? names?.get(row.employeeId)?.trim() : '';
+  const code = readableCode(row.employeeCode);
+  return fromRecord || fromDirectory || (loading ? '…' : code || '—');
 }
 
 function FilterBar() {
@@ -144,6 +199,7 @@ export function AttendanceListPage() {
     queryKey: ['attendance', query],
     queryFn: () => fetchAttendance(query),
   });
+  const names = useEmployeeNames(data?.items ?? []);
 
   const save = useMutation({
     mutationFn: () => patchAttendance(editing!.id, { reason, ...compactFields(form) }),
@@ -179,9 +235,14 @@ export function AttendanceListPage() {
 
   const columns: Column<AttendanceRecord>[] = [
     {
-      key: 'employeeCode',
-      header: t('employees.code'),
-      render: (row) => <EmployeeLink id={row.employeeId} code={row.employeeCode ?? row.employeeId} />,
+      key: 'employeeName',
+      header: t('employees.name'),
+      render: (row) => (
+        <EmployeeLink
+          id={row.employeeId}
+          code={employeeDisplayName(row, names.data, names.isFetching)}
+        />
+      ),
     },
     { key: 'period', header: t('common.period') },
     { key: 'periodWorkingDays', header: t('attendance.workingDays'), render: (row) => moneyText(row.periodWorkingDays ?? row.summary?.periodWorkingDays) },
@@ -266,6 +327,7 @@ export function PenaltiesListPage() {
     queryKey: ['penalties', query],
     queryFn: () => fetchPenalties(query),
   });
+  const names = useEmployeeNames(data?.items ?? []);
 
   const save = useMutation({
     mutationFn: () =>
@@ -296,9 +358,14 @@ export function PenaltiesListPage() {
 
   const columns: Column<PenaltyRecord>[] = [
     {
-      key: 'employeeCode',
-      header: t('employees.code'),
-      render: (row) => <EmployeeLink id={row.employeeId} code={row.employeeCode ?? row.employeeId} />,
+      key: 'employeeName',
+      header: t('employees.name'),
+      render: (row) => (
+        <EmployeeLink
+          id={row.employeeId}
+          code={employeeDisplayName(row, names.data, names.isFetching)}
+        />
+      ),
     },
     { key: 'period', header: t('common.period') },
     { key: 'amount', header: t('penalties.amount'), render: (row) => moneyText(row.amount ?? row.totalAmount) },
@@ -363,6 +430,7 @@ export function PayrollListPage() {
     queryKey: ['payroll', query],
     queryFn: () => fetchPayroll(query),
   });
+  const names = useEmployeeNames(data?.items ?? []);
 
   const save = useMutation({
     mutationFn: () => patchPayroll(editing!.id, { reason, ...compactFields(form) }),
@@ -398,9 +466,14 @@ export function PayrollListPage() {
 
   const columns: Column<PayrollRecord>[] = [
     {
-      key: 'employeeCode',
-      header: t('employees.code'),
-      render: (row) => <EmployeeLink id={row.employeeId} code={row.employeeCode ?? row.employeeId} />,
+      key: 'employeeName',
+      header: t('employees.name'),
+      render: (row) => (
+        <EmployeeLink
+          id={row.employeeId}
+          code={employeeDisplayName(row, names.data, names.isFetching)}
+        />
+      ),
     },
     { key: 'period', header: t('common.period') },
     { key: 'baseSalary', header: t('payroll.baseSalary'), render: (row) => moneyText(row.baseSalary) },

@@ -206,6 +206,7 @@ export interface AttendanceRecord {
   source: 'staging' | 'published';
   employeeId: string | null;
   employeeCode?: string;
+  employeeName?: string | null;
   period: string;
   importSessionId: string | null;
   status?: WorkflowStatus;
@@ -238,6 +239,7 @@ export interface PenaltyRecord {
   source: 'staging' | 'published';
   employeeId: string | null;
   employeeCode?: string;
+  employeeName?: string | null;
   period: string;
   importSessionId: string | null;
   status?: WorkflowStatus;
@@ -265,6 +267,7 @@ export interface PayrollRecord {
   source: 'staging' | 'published';
   employeeId: string | null;
   employeeCode?: string;
+  employeeName?: string | null;
   period: string;
   importSessionId: string | null;
   status?: WorkflowStatus;

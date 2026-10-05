@@ -39,7 +39,7 @@ export function EmployeeWalletImportPage() {
   const [confirmShared, setConfirmShared] = useState(false);
 
   const importFile = useMutation({
-    mutationFn: (confirmSharedWallets = false) => {
+    mutationFn: (confirmSharedWallets: boolean) => {
       if (!file) throw new Error(t('imports.file'));
       return importEmployeeWallets(file, reason.trim(), confirmSharedWallets);
     },

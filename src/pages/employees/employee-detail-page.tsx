@@ -617,7 +617,7 @@ function WalletAssignCard({
     isAllowedWalletImage(image!);
 
   const save = useMutation({
-    mutationFn: (confirmSharedWallet = false) =>
+    mutationFn: (confirmSharedWallet: boolean) =>
       setEmployeeWallet(employeeId, {
         address: address.replace(/\s+/g, '').trim(),
         platform,

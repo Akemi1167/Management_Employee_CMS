@@ -13,6 +13,6 @@ echo "Deploying stack..."
 docker stack deploy -c docker-compose.yml management_employee_cms_web
 
 echo "Forcing service update to apply new image..."
-docker service update --force management_employee_cms_web_web
+docker service update --force --image management_employee_cms_web:latest management_employee_cms_web_web
 
 echo "Deploy Management Employee CMS Web completed!"

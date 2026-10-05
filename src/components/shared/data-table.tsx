@@ -15,6 +15,8 @@ export interface Column<T> {
   className?: string;
   /** Set false for columns that should not be sorted, such as action menus. */
   sortable?: boolean;
+  /** Server sort asks the API to order the full result set. */
+  sortMode?: 'client' | 'server';
   /** Value used when the visible cell is not the raw field. */
   sortValue?: (row: T) => SortValue;
 }
@@ -35,6 +37,9 @@ interface DataTableProps<T> {
     total: number;
     onPageChange: (page: number) => void;
   };
+  /** Active sort owned by the API. Client sort of other columns stays local. */
+  serverSort?: SortState | null;
+  onServerSortChange?: (sort: SortState | null) => void;
 }
 
 type SortDirection = 'asc' | 'desc';
@@ -46,8 +51,15 @@ interface SortState {
 
 const NON_DATA_KEYS = new Set(['actions', 'select']);
 
+function cycleSort(current: SortState | null, key: string): SortState | null {
+  if (current?.key !== key) return { key, direction: 'asc' };
+  if (current.direction === 'asc') return { key, direction: 'desc' };
+  return null;
+}
+
 function isColumnSortable<T>(column: Column<T>, data: T[]): boolean {
   if (column.sortable != null) return column.sortable;
+  if (column.sortMode === 'server') return true;
   if (NON_DATA_KEYS.has(column.key)) return false;
   if (column.sortValue) return true;
 
@@ -110,6 +122,8 @@ export function DataTable<T extends object>({
   count,
   countLabel,
   pagination,
+  serverSort,
+  onServerSortChange,
 }: DataTableProps<T>) {
   const { t } = useTranslation();
   const noDataMessage = emptyMessage ?? t('common.noData');
@@ -132,12 +146,15 @@ export function DataTable<T extends object>({
       .map((item) => item.row);
   }, [columns, data, sort]);
 
-  const toggleSort = (key: string) => {
-    setSort((current) => {
-      if (current?.key !== key) return { key, direction: 'asc' };
-      if (current.direction === 'asc') return { key, direction: 'desc' };
-      return null;
-    });
+  const toggleSort = (column: Column<T>) => {
+    if (column.sortMode === 'server' && onServerSortChange) {
+      setSort(null);
+      onServerSortChange(cycleSort(serverSort?.key === column.key ? serverSort : null, column.key));
+      return;
+    }
+
+    if (serverSort) onServerSortChange?.(null);
+    setSort((current) => cycleSort(current, column.key));
   };
 
   if (loading) {
@@ -177,17 +194,12 @@ export function DataTable<T extends object>({
               <tr className="border-b border-[#2a3040] bg-[#1a1e28]/60">
                 {columns.map((col) => {
                   const sortable = isColumnSortable(col, data);
-                  const active = sort?.key === col.key;
-                  const ariaSort = !sortable
-                    ? undefined
-                    : active
-                      ? sort.direction === 'asc'
-                        ? 'ascending'
-                        : 'descending'
-                      : 'none';
-                  const sortLabel = !active
+                  const serverActive = col.sortMode === 'server' && !sort && serverSort?.key === col.key;
+                  const direction = sort?.key === col.key ? sort.direction : serverActive ? serverSort?.direction : null;
+                  const ariaSort = !sortable ? undefined : direction === 'asc' ? 'ascending' : direction === 'desc' ? 'descending' : 'none';
+                  const sortLabel = !direction
                     ? t('common.sortBy', { column: col.header })
-                    : sort.direction === 'asc'
+                    : direction === 'asc'
                       ? t('common.sortedAsc', { column: col.header })
                       : t('common.sortedDesc', { column: col.header });
 
@@ -202,16 +214,16 @@ export function DataTable<T extends object>({
                           type="button"
                           className={cn(
                             'inline-flex w-full cursor-pointer items-center gap-1.5 px-5 py-3 text-left font-semibold uppercase tracking-wider',
-                            active ? 'text-[#86efac]' : 'text-inherit hover:text-[#86efac]',
+                            direction ? 'text-[#86efac]' : 'text-inherit hover:text-[#86efac]',
                           )}
                           aria-label={sortLabel}
                           title={sortLabel}
-                          onClick={() => toggleSort(col.key)}
+                          onClick={() => toggleSort(col)}
                         >
                           <span>{col.header}</span>
-                          {active && sort.direction === 'asc' ? (
+                          {direction === 'asc' ? (
                             <ArrowUp className="h-3.5 w-3.5 shrink-0" />
-                          ) : active && sort.direction === 'desc' ? (
+                          ) : direction === 'desc' ? (
                             <ArrowDown className="h-3.5 w-3.5 shrink-0" />
                           ) : (
                             <ArrowUpDown className="h-3.5 w-3.5 shrink-0 text-[#9aa3b5]" />

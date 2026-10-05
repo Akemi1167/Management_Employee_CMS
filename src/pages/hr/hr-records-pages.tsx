@@ -322,14 +322,19 @@ export function PenaltiesListPage() {
   const queryClient = useQueryClient();
   const canEdit = useAuthStore((s) => s.hasPermission(PERMISSION.PENALTY_STAGING_UPDATE));
   const { page, setPage, source, query } = useHrFilters();
+  const [amountSort, setAmountSort] = useState<'asc' | 'desc' | null>(null);
   const [editing, setEditing] = useState<PenaltyRecord | null>(null);
   const [reason, setReason] = useState('');
   const [amount, setAmount] = useState('');
   const [penaltyReason, setPenaltyReason] = useState('');
 
+  const penaltyQuery = {
+    ...query,
+    ...(amountSort ? { sortBy: 'amount', sortOrder: amountSort } : {}),
+  };
   const { data, isLoading } = useQuery({
-    queryKey: ['penalties', query],
-    queryFn: () => fetchPenalties(query),
+    queryKey: ['penalties', penaltyQuery],
+    queryFn: () => fetchPenalties(penaltyQuery),
   });
   const names = useEmployeeNames(data?.items ?? []);
 
@@ -373,7 +378,12 @@ export function PenaltiesListPage() {
       ),
     },
     { key: 'period', header: t('common.period') },
-    { key: 'amount', header: t('penalties.amount'), sortValue: (row) => row.amount ?? row.totalAmount, render: (row) => moneyText(row.amount ?? row.totalAmount) },
+    {
+      key: 'amount',
+      header: t('penalties.amount'),
+      sortMode: 'server',
+      render: (row) => moneyText(row.amount ?? row.totalAmount),
+    },
     { key: 'currency', header: t('penalties.currency') },
     { key: 'penaltyReason', header: t('penalties.reason') },
     { key: 'status', header: t('common.status'), render: (row) => <StatusBadge value={row.status} ns="workflow" /> },
@@ -388,6 +398,11 @@ export function PenaltiesListPage() {
         data={data?.items ?? []}
         loading={isLoading}
         onRowClick={canEdit && source === 'staging' ? (row) => void openEdit(row) : undefined}
+        serverSort={amountSort ? { key: 'amount', direction: amountSort } : null}
+        onServerSortChange={(next) => {
+          setPage(1);
+          setAmountSort(next?.key === 'amount' ? next.direction : null);
+        }}
         pagination={{ page, pageSize: PAGE_SIZE, total: data?.total ?? 0, onPageChange: setPage }}
       />
       <Dialog

@@ -119,7 +119,12 @@ export function ComplaintsListPage() {
       render: (row) => <EmployeeLink id={row.employeeId} code={row.employeeCode} />,
     },
     { key: 'employeeName', header: t('employees.name') },
-    { key: 'subjectType', header: t('common.dataType'), render: (row) => t(`dataType.${row.subjectType}`) },
+    {
+      key: 'subjectType',
+      header: t('common.dataType'),
+      sortValue: (row) => t(`dataType.${row.subjectType}`),
+      render: (row) => t(`dataType.${row.subjectType}`),
+    },
     { key: 'period', header: t('common.period') },
     {
       key: 'status',
@@ -129,6 +134,7 @@ export function ComplaintsListPage() {
     {
       key: 'assigneeName',
       header: t('complaints.assignee'),
+      sortValue: (row) => assigneeLabel(row),
       render: (row) => assigneeLabel(row),
     },
     { key: 'createdAt', header: t('audit.occurredAt'), render: (row) => formatDate(row.createdAt) },

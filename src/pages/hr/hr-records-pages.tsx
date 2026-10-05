@@ -240,6 +240,7 @@ export function AttendanceListPage() {
     {
       key: 'employeeName',
       header: t('employees.name'),
+      sortValue: (row) => employeeDisplayName(row, names.data, names.isFetching),
       render: (row) => (
         <EmployeeLink
           id={row.employeeId}
@@ -248,12 +249,12 @@ export function AttendanceListPage() {
       ),
     },
     { key: 'period', header: t('common.period') },
-    { key: 'periodWorkingDays', header: t('attendance.workingDays'), render: (row) => moneyText(row.periodWorkingDays ?? row.summary?.periodWorkingDays) },
-    { key: 'actualWorkedDays', header: t('attendance.actualDays'), render: (row) => moneyText(row.actualWorkedDays ?? row.summary?.actualWorkedDays) },
-    { key: 'overtimeDays', header: t('attendance.overtime'), render: (row) => moneyText(row.overtimeDays ?? row.summary?.overtimeDays) },
-    { key: 'overtimeHours', header: t('attendance.overtimeHours'), render: (row) => moneyText(row.overtimeHours ?? row.summary?.overtimeHours) },
-    { key: 'specialLeaveDays', header: t('attendance.specialLeave'), render: (row) => moneyText(row.specialLeaveDays ?? row.summary?.specialLeaveDays) },
-    { key: 'unpaidLeaveDays', header: t('attendance.unpaidLeave'), render: (row) => moneyText(row.unpaidLeaveDays ?? row.summary?.unpaidLeaveDays) },
+    { key: 'periodWorkingDays', header: t('attendance.workingDays'), sortValue: (row) => row.periodWorkingDays ?? row.summary?.periodWorkingDays, render: (row) => moneyText(row.periodWorkingDays ?? row.summary?.periodWorkingDays) },
+    { key: 'actualWorkedDays', header: t('attendance.actualDays'), sortValue: (row) => row.actualWorkedDays ?? row.summary?.actualWorkedDays, render: (row) => moneyText(row.actualWorkedDays ?? row.summary?.actualWorkedDays) },
+    { key: 'overtimeDays', header: t('attendance.overtime'), sortValue: (row) => row.overtimeDays ?? row.summary?.overtimeDays, render: (row) => moneyText(row.overtimeDays ?? row.summary?.overtimeDays) },
+    { key: 'overtimeHours', header: t('attendance.overtimeHours'), sortValue: (row) => row.overtimeHours ?? row.summary?.overtimeHours, render: (row) => moneyText(row.overtimeHours ?? row.summary?.overtimeHours) },
+    { key: 'specialLeaveDays', header: t('attendance.specialLeave'), sortValue: (row) => row.specialLeaveDays ?? row.summary?.specialLeaveDays, render: (row) => moneyText(row.specialLeaveDays ?? row.summary?.specialLeaveDays) },
+    { key: 'unpaidLeaveDays', header: t('attendance.unpaidLeave'), sortValue: (row) => row.unpaidLeaveDays ?? row.summary?.unpaidLeaveDays, render: (row) => moneyText(row.unpaidLeaveDays ?? row.summary?.unpaidLeaveDays) },
     { key: 'employedDays', header: t('attendance.employedDays'), render: (row) => moneyText(row.employedDays) },
     {
       key: 'penaltyAmount',
@@ -363,6 +364,7 @@ export function PenaltiesListPage() {
     {
       key: 'employeeName',
       header: t('employees.name'),
+      sortValue: (row) => employeeDisplayName(row, names.data, names.isFetching),
       render: (row) => (
         <EmployeeLink
           id={row.employeeId}
@@ -371,7 +373,7 @@ export function PenaltiesListPage() {
       ),
     },
     { key: 'period', header: t('common.period') },
-    { key: 'amount', header: t('penalties.amount'), render: (row) => moneyText(row.amount ?? row.totalAmount) },
+    { key: 'amount', header: t('penalties.amount'), sortValue: (row) => row.amount ?? row.totalAmount, render: (row) => moneyText(row.amount ?? row.totalAmount) },
     { key: 'currency', header: t('penalties.currency') },
     { key: 'penaltyReason', header: t('penalties.reason') },
     { key: 'status', header: t('common.status'), render: (row) => <StatusBadge value={row.status} ns="workflow" /> },
@@ -471,6 +473,7 @@ export function PayrollListPage() {
     {
       key: 'employeeName',
       header: t('employees.name'),
+      sortValue: (row) => employeeDisplayName(row, names.data, names.isFetching),
       render: (row) => (
         <EmployeeLink
           id={row.employeeId}

@@ -38,7 +38,10 @@
     "yes": "是",
     "no": "否",
     "required": "必填",
-    "optional": "可选"
+    "optional": "可选",
+    "sortBy": "按{{column}}排序",
+    "sortedAsc": "{{column}}，升序",
+    "sortedDesc": "{{column}}，降序"
   },
   "pagination": {
     "summary": "{{from}}–{{to}} / {{total}}"

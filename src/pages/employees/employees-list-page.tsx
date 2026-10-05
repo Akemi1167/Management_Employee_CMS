@@ -80,6 +80,7 @@ export function EmployeesListPage() {
     {
       key: 'wallet',
       header: t('employees.walletColumn'),
+      sortValue: (row) => row.wallet?.addressMasked,
       render: (row) => (
         <span>
           {row.wallet?.addressMasked || '—'}

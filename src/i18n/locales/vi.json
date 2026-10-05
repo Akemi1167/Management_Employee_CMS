@@ -38,7 +38,10 @@
     "yes": "Có",
     "no": "Không",
     "required": "Bắt buộc",
-    "optional": "Tùy chọn"
+    "optional": "Tùy chọn",
+    "sortBy": "Sắp xếp theo {{column}}",
+    "sortedAsc": "{{column}}, tăng dần",
+    "sortedDesc": "{{column}}, giảm dần"
   },
   "pagination": {
     "summary": "{{from}}–{{to}} / {{total}}"

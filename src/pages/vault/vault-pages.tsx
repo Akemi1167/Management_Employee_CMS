@@ -117,6 +117,7 @@ export function VaultPage() {
     {
       key: 'approvals',
       header: t('vault.approvals'),
+      sortValue: (row) => row.approvals.length,
       render: (row) => `${row.approvals.length}/${row.requiredApprovals}`,
     },
   ];
@@ -129,6 +130,7 @@ export function VaultPage() {
     {
       key: 'approvals',
       header: t('vault.approvals'),
+      sortValue: (row) => row.approvals.length,
       render: (row) => `${row.approvals.length}/${row.requiredApprovals}`,
     },
   ];

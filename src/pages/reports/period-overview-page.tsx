@@ -84,6 +84,7 @@ export function PeriodOverviewPage() {
     ) => ({
       key,
       header: t(`dataType.${key}`),
+      sortValue: (row: PeriodOverviewEmployee) => typeSortValue(row[field], tab, source),
       render: (row: PeriodOverviewEmployee) => (
         <TypeCell status={row[field]} tab={tab} source={source} />
       ),
@@ -206,6 +207,19 @@ function TabButton({
       {children}
     </Button>
   );
+}
+
+function typeSortValue(
+  status: PeriodEmployeeTypeStatus,
+  tab: 'coverage' | 'confirmations',
+  source: PeriodOverviewSource,
+) {
+  if (tab === 'confirmations') {
+    if (!status.published) return 'NOT_PUBLISHED';
+    return status.confirmed ? 'CONFIRMED' : 'PENDING';
+  }
+  const present = source === 'staging' ? status.staging : status.published;
+  return present ? 'PRESENT' : 'MISSING';
 }
 
 function TypeCell({

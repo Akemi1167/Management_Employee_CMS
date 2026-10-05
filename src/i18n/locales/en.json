@@ -38,7 +38,10 @@
     "yes": "Yes",
     "no": "No",
     "required": "Required",
-    "optional": "Optional"
+    "optional": "Optional",
+    "sortBy": "Sort by {{column}}",
+    "sortedAsc": "{{column}}, ascending",
+    "sortedDesc": "{{column}}, descending"
   },
   "pagination": {
     "summary": "{{from}}–{{to}} / {{total}}"

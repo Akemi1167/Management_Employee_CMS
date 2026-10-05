@@ -1,14 +1,22 @@
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { cardClass, textBody, textColumnHeader, textSubtle, textTitle } from '@/constants/theme';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TablePagination } from '@/components/shared/table-pagination';
+
+export type SortValue = string | number | boolean | null | undefined;
 
 export interface Column<T> {
   key: string;
   header: string;
   render?: (row: T) => React.ReactNode;
   className?: string;
+  /** Set false for columns that should not be sorted, such as action menus. */
+  sortable?: boolean;
+  /** Value used when the visible cell is not the raw field. */
+  sortValue?: (row: T) => SortValue;
 }
 
 interface DataTableProps<T> {
@@ -29,6 +37,68 @@ interface DataTableProps<T> {
   };
 }
 
+type SortDirection = 'asc' | 'desc';
+
+interface SortState {
+  key: string;
+  direction: SortDirection;
+}
+
+const NON_DATA_KEYS = new Set(['actions', 'select']);
+
+function isColumnSortable<T>(column: Column<T>, data: T[]): boolean {
+  if (column.sortable != null) return column.sortable;
+  if (NON_DATA_KEYS.has(column.key)) return false;
+  if (column.sortValue) return true;
+
+  for (const row of data) {
+    const value = (row as Record<string, unknown>)[column.key];
+    if (value == null || value === '') continue;
+    return typeof value !== 'object';
+  }
+
+  return true;
+}
+
+function readSortValue<T>(row: T, column: Column<T>): SortValue {
+  if (column.sortValue) return column.sortValue(row);
+  const value = (row as Record<string, unknown>)[column.key];
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean' || value == null) {
+    return value as SortValue;
+  }
+  return null;
+}
+
+function normalizeSortValue(value: SortValue): { empty: true } | { empty: false; text: string; number: number | null } {
+  if (typeof value === 'boolean') {
+    return { empty: false, text: value ? 'true' : 'false', number: value ? 1 : 0 };
+  }
+  if (value == null || value === '') return { empty: true };
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? { empty: false, text: String(value), number: value } : { empty: true };
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed || trimmed === '—' || trimmed === '-' || trimmed === '–') return { empty: true };
+  if (/^-?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(trimmed)) {
+    const amount = Number(trimmed);
+    if (Number.isFinite(amount)) return { empty: false, text: trimmed, number: amount };
+  }
+  return { empty: false, text: trimmed, number: null };
+}
+
+function compareSortValues(left: SortValue, right: SortValue, direction: SortDirection): number {
+  const a = normalizeSortValue(left);
+  const b = normalizeSortValue(right);
+  if (a.empty && b.empty) return 0;
+  if (a.empty) return 1;
+  if (b.empty) return -1;
+
+  const factor = direction === 'asc' ? 1 : -1;
+  if (a.number != null && b.number != null) return (a.number - b.number) * factor;
+  return a.text.localeCompare(b.text, undefined, { numeric: true, sensitivity: 'base' }) * factor;
+}
+
 export function DataTable<T extends object>({
   columns,
   data,
@@ -43,6 +113,32 @@ export function DataTable<T extends object>({
 }: DataTableProps<T>) {
   const { t } = useTranslation();
   const noDataMessage = emptyMessage ?? t('common.noData');
+  const [sort, setSort] = useState<SortState | null>(null);
+
+  const sortedData = useMemo(() => {
+    if (!sort) return data;
+    const column = columns.find((item) => item.key === sort.key && isColumnSortable(item, data));
+    if (!column) return data;
+    return data
+      .map((row, index) => ({ row, index }))
+      .sort((left, right) => {
+        const compared = compareSortValues(
+          readSortValue(left.row, column),
+          readSortValue(right.row, column),
+          sort.direction,
+        );
+        return compared === 0 ? left.index - right.index : compared;
+      })
+      .map((item) => item.row);
+  }, [columns, data, sort]);
+
+  const toggleSort = (key: string) => {
+    setSort((current) => {
+      if (current?.key !== key) return { key, direction: 'asc' };
+      if (current.direction === 'asc') return { key, direction: 'desc' };
+      return null;
+    });
+  };
 
   if (loading) {
     return (
@@ -79,18 +175,58 @@ export function DataTable<T extends object>({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-[#2a3040] bg-[#1a1e28]/60">
-                {columns.map((col) => (
-                  <th
-                    key={col.key}
-                    className={cn('px-5 py-3 text-left', textColumnHeader, col.className)}
-                  >
-                    {col.header}
-                  </th>
-                ))}
+                {columns.map((col) => {
+                  const sortable = isColumnSortable(col, data);
+                  const active = sort?.key === col.key;
+                  const ariaSort = !sortable
+                    ? undefined
+                    : active
+                      ? sort.direction === 'asc'
+                        ? 'ascending'
+                        : 'descending'
+                      : 'none';
+                  const sortLabel = !active
+                    ? t('common.sortBy', { column: col.header })
+                    : sort.direction === 'asc'
+                      ? t('common.sortedAsc', { column: col.header })
+                      : t('common.sortedDesc', { column: col.header });
+
+                  return (
+                    <th
+                      key={col.key}
+                      aria-sort={ariaSort}
+                      className={cn('text-left', textColumnHeader, col.className)}
+                    >
+                      {sortable ? (
+                        <button
+                          type="button"
+                          className={cn(
+                            'inline-flex w-full cursor-pointer items-center gap-1.5 px-5 py-3 text-left font-semibold uppercase tracking-wider',
+                            active ? 'text-[#86efac]' : 'text-inherit hover:text-[#86efac]',
+                          )}
+                          aria-label={sortLabel}
+                          title={sortLabel}
+                          onClick={() => toggleSort(col.key)}
+                        >
+                          <span>{col.header}</span>
+                          {active && sort.direction === 'asc' ? (
+                            <ArrowUp className="h-3.5 w-3.5 shrink-0" />
+                          ) : active && sort.direction === 'desc' ? (
+                            <ArrowDown className="h-3.5 w-3.5 shrink-0" />
+                          ) : (
+                            <ArrowUpDown className="h-3.5 w-3.5 shrink-0 text-[#9aa3b5]" />
+                          )}
+                        </button>
+                      ) : (
+                        <span className="block px-5 py-3">{col.header}</span>
+                      )}
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody className="divide-y divide-[#2a3040]">
-              {data.map((row, idx) => {
+              {sortedData.map((row, idx) => {
                 const interactive = Boolean(onRowClick);
                 return (
                 <tr

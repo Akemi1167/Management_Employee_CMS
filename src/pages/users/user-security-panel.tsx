@@ -137,6 +137,7 @@ export function UserSecurityPanel({ user }: { user: AdminUser }) {
     {
       key: 'resource',
       header: t('audit.resource'),
+      sortValue: (row) => row.resourceType,
       render: (row) => row.resourceType || '—',
     },
     {

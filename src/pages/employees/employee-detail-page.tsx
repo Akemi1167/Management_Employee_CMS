@@ -999,6 +999,7 @@ function sourceColumn<T extends { source: 'staging' | 'published' }>(
   return {
     key: 'source',
     header: t('source.label'),
+    sortValue: (row) => t(`source.${row.source}`),
     render: (row) => t(`source.${row.source}`),
   };
 }
@@ -1025,26 +1026,31 @@ function EmployeeAttendancePanel({
     {
       key: 'actualWorkedDays',
       header: t('attendance.actualDays'),
+      sortValue: (row) => row.actualWorkedDays ?? row.summary?.actualWorkedDays,
       render: (row) => moneyText(row.actualWorkedDays ?? row.summary?.actualWorkedDays),
     },
     {
       key: 'periodWorkingDays',
       header: t('attendance.workingDays'),
+      sortValue: (row) => row.periodWorkingDays ?? row.summary?.periodWorkingDays,
       render: (row) => moneyText(row.periodWorkingDays ?? row.summary?.periodWorkingDays),
     },
     {
       key: 'overtimeDays',
       header: t('attendance.overtime'),
+      sortValue: (row) => row.overtimeDays ?? row.summary?.overtimeDays,
       render: (row) => moneyText(row.overtimeDays ?? row.summary?.overtimeDays),
     },
     {
       key: 'overtimeHours',
       header: t('attendance.overtimeHours'),
+      sortValue: (row) => row.overtimeHours ?? row.summary?.overtimeHours,
       render: (row) => moneyText(row.overtimeHours ?? row.summary?.overtimeHours),
     },
     {
       key: 'unpaidLeaveDays',
       header: t('attendance.unpaidLeave'),
+      sortValue: (row) => row.unpaidLeaveDays ?? row.summary?.unpaidLeaveDays,
       render: (row) => moneyText(row.unpaidLeaveDays ?? row.summary?.unpaidLeaveDays),
     },
     {
@@ -1097,7 +1103,12 @@ function EmployeePenaltyPanel({
   const columns: Column<PenaltyRecord>[] = [
     { key: 'period', header: t('common.period') },
     sourceColumn<PenaltyRecord>(t),
-    { key: 'amount', header: t('penalties.amount'), render: (row) => moneyText(row.amount ?? row.totalAmount) },
+    {
+      key: 'amount',
+      header: t('penalties.amount'),
+      sortValue: (row) => row.amount ?? row.totalAmount,
+      render: (row) => moneyText(row.amount ?? row.totalAmount),
+    },
     { key: 'currency', header: t('penalties.currency') },
     { key: 'penaltyReason', header: t('penalties.reason') },
     {

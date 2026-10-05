@@ -88,7 +88,12 @@ export function UsersListPage() {
     { key: 'username', header: t('users.username') },
     { key: 'fullName', header: t('users.fullName') },
     { key: 'email', header: t('users.email') },
-    { key: 'roles', header: t('users.roles'), render: (row) => row.roles.map((role) => t(`roles.${role}`)).join(', ') },
+    {
+      key: 'roles',
+      header: t('users.roles'),
+      sortValue: (row) => row.roles.map((role) => t(`roles.${role}`)).join(', '),
+      render: (row) => row.roles.map((role) => t(`roles.${role}`)).join(', '),
+    },
     { key: 'status', header: t('common.status'), render: (row) => <StatusBadge value={row.status} ns="userStatus" /> },
     {
       key: 'mfaEnabled',

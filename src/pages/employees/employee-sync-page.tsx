@@ -49,10 +49,10 @@ export function EmployeeSyncListPage() {
     { key: 'code', header: t('imports.code') },
     { key: 'status', header: t('common.status'), render: (row) => <StatusBadge value={row.status} ns="workflow" /> },
     { key: 'larkFetchedAt', header: t('audit.occurredAt'), render: (row) => formatDate(row.larkFetchedAt) },
-    { key: 'toCreate', header: t('syncChange.CREATE'), render: (row) => row.counters.toCreate },
-    { key: 'toUpdate', header: t('syncChange.UPDATE_PROFILE'), render: (row) => row.counters.toUpdate },
-    { key: 'needsConfirmation', header: t('employeeSync.needsConfirmation'), render: (row) => row.counters.needsConfirmation },
-    { key: 'conflicts', header: t('syncChange.CONFLICT'), render: (row) => row.counters.conflicts },
+    { key: 'toCreate', header: t('syncChange.CREATE'), sortValue: (row) => row.counters.toCreate, render: (row) => row.counters.toCreate },
+    { key: 'toUpdate', header: t('syncChange.UPDATE_PROFILE'), sortValue: (row) => row.counters.toUpdate, render: (row) => row.counters.toUpdate },
+    { key: 'needsConfirmation', header: t('employeeSync.needsConfirmation'), sortValue: (row) => row.counters.needsConfirmation, render: (row) => row.counters.needsConfirmation },
+    { key: 'conflicts', header: t('syncChange.CONFLICT'), sortValue: (row) => row.counters.conflicts, render: (row) => row.counters.conflicts },
   ];
 
   return (
@@ -135,11 +135,20 @@ export function EmployeeSyncDetailPage() {
         );
       },
     },
-    { key: 'changeType', header: t('common.dataType'), render: (row) => t(`syncChange.${row.changeType}`) },
+    {
+      key: 'changeType',
+      header: t('common.dataType'),
+      sortValue: (row) => t(`syncChange.${row.changeType}`),
+      render: (row) => t(`syncChange.${row.changeType}`),
+    },
     { key: 'employeeCode', header: t('employees.code'), render: (row) => <EmployeeLink id={row.employeeId} code={row.employeeCode} /> },
     {
       key: 'fields',
       header: t('employeeSync.changes'),
+      sortValue: (row) =>
+        row.fields.length
+          ? row.fields.map((field) => `${field.field}: ${field.before ?? ''} → ${field.after ?? ''}`).join('; ')
+          : row.note,
       render: (row) =>
         row.fields.length
           ? row.fields.map((field) => `${field.field}: ${field.before ?? '—'} → ${field.after ?? '—'}`).join('; ')

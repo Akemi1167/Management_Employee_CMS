@@ -104,6 +104,7 @@ export function WalletRequestsPage() {
     {
       key: 'nextStep',
       header: t('wallet.nextStep'),
+      sortValue: (row) => t(`wallet.next.${walletNextStep(row)}`),
       render: (row) => t(`wallet.next.${walletNextStep(row)}`),
     },
     {

@@ -73,12 +73,12 @@ export function ImportsListPage() {
 
   const columns: Column<ImportSessionListItem>[] = [
     { key: 'code', header: t('imports.code') },
-    { key: 'dataType', header: t('common.dataType'), render: (row) => t(`dataType.${row.dataType}`) },
+    { key: 'dataType', header: t('common.dataType'), sortValue: (row) => t(`dataType.${row.dataType}`), render: (row) => t(`dataType.${row.dataType}`) },
     { key: 'period', header: t('common.period') },
     { key: 'status', header: t('common.status'), render: (row) => <StatusBadge value={row.status} ns="workflow" /> },
-    { key: 'validRows', header: t('imports.validRows'), render: (row) => row.totals.validRows },
-    { key: 'errorRows', header: t('imports.errorRows'), render: (row) => row.totals.errorRows },
-    { key: 'totalAmount', header: t('imports.totalAmount'), render: (row) => moneyText(row.totals.totalAmount) },
+    { key: 'validRows', header: t('imports.validRows'), sortValue: (row) => row.totals.validRows, render: (row) => row.totals.validRows },
+    { key: 'errorRows', header: t('imports.errorRows'), sortValue: (row) => row.totals.errorRows, render: (row) => row.totals.errorRows },
+    { key: 'totalAmount', header: t('imports.totalAmount'), sortValue: (row) => row.totals.totalAmount, render: (row) => moneyText(row.totals.totalAmount) },
     { key: 'uploadedAt', header: t('audit.occurredAt'), render: (row) => formatDate(row.uploadedAt) },
   ];
 

@@ -52,7 +52,12 @@ export function AuditListPage() {
   const columns: Column<AuditEvent>[] = [
     { key: 'occurredAt', header: t('audit.occurredAt'), render: (row) => formatDate(row.occurredAt) },
     { key: 'action', header: t('audit.action') },
-    { key: 'actorRole', header: t('audit.actor'), render: (row) => row.actorRole ?? row.actorUserId ?? '—' },
+    {
+      key: 'actorRole',
+      header: t('audit.actor'),
+      sortValue: (row) => row.actorRole ?? row.actorUserId,
+      render: (row) => row.actorRole ?? row.actorUserId ?? '—',
+    },
     { key: 'resourceType', header: t('audit.resource') },
     { key: 'resourceId', header: t('audit.resourceId') },
     { key: 'result', header: t('audit.result'), render: (row) => <StatusBadge value={row.result} ns="audit" /> },

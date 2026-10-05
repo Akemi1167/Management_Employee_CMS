@@ -81,10 +81,10 @@ export function ApprovalsListPage() {
         </Link>
       ),
     },
-    { key: 'dataType', header: t('common.dataType'), render: (row) => t(`dataType.${row.dataType}`) },
+    { key: 'dataType', header: t('common.dataType'), sortValue: (row) => t(`dataType.${row.dataType}`), render: (row) => t(`dataType.${row.dataType}`) },
     { key: 'period', header: t('common.period') },
-    { key: 'validRows', header: t('imports.validRows'), render: (row) => row.totals.validRows },
-    { key: 'totalAmount', header: t('imports.totalAmount'), render: (row) => moneyText(row.totals.totalAmount) },
+    { key: 'validRows', header: t('imports.validRows'), sortValue: (row) => row.totals.validRows, render: (row) => row.totals.validRows },
+    { key: 'totalAmount', header: t('imports.totalAmount'), sortValue: (row) => row.totals.totalAmount, render: (row) => moneyText(row.totals.totalAmount) },
     { key: 'submittedAt', header: t('audit.occurredAt'), render: (row) => formatDate(row.submittedAt) },
     {
       key: 'actions',
@@ -226,7 +226,7 @@ export function PublishingPage() {
   };
 
   const columns: Column<DataPeriod>[] = [
-    { key: 'dataType', header: t('common.dataType'), render: (row) => t(`dataType.${row.dataType}`) },
+    { key: 'dataType', header: t('common.dataType'), sortValue: (row) => t(`dataType.${row.dataType}`), render: (row) => t(`dataType.${row.dataType}`) },
     { key: 'period', header: t('common.period') },
     { key: 'status', header: t('common.status'), render: (row) => <StatusBadge value={row.status} ns="periodStatus" /> },
     { key: 'currentVersion', header: t('publishing.version') },

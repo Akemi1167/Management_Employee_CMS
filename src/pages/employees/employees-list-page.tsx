@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -15,7 +15,9 @@ import { cardClass } from '@/constants/theme';
 import { PERMISSION } from '@/constants/api-endpoints';
 import { formatDay } from '@/lib/period';
 import { hasAssignedWallet } from '@/lib/wallet-workflow';
+import { managersByRegion } from '@/lib/region-managers';
 import { fetchEmployees } from '@/services/employee.service';
+import { fetchUsers } from '@/services/user.service';
 import { useAuthStore } from '@/stores/auth-store';
 import type { Employee } from '@/types/api';
 
@@ -24,18 +26,23 @@ const PAGE_SIZE = 20;
 export function EmployeesListPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const canImport = useAuthStore((s) => s.hasPermission(PERMISSION.EMPLOYEE_WRITE));
   const canUpdate = useAuthStore((s) => s.hasPermission(PERMISSION.EMPLOYEE_UPDATE));
   const canWallet = useAuthStore((s) => s.hasPermission(PERMISSION.WALLET_WRITE));
   const canWalletRead = useAuthStore((s) => s.hasPermission(PERMISSION.WALLET_READ));
   const canPortal = useAuthStore((s) => s.hasPermission(PERMISSION.EMPLOYEE_WRITE));
+  const canReadUsers = useAuthStore((s) => s.hasPermission(PERMISSION.USER_READ));
+  const initialUnassigned = searchParams.get('unassigned') === '1';
   const [query, setQuery] = useState(searchParams.get('query') ?? '');
-  const [departmentCode, setDepartmentCode] = useState('');
+  const [departmentCode, setDepartmentCode] = useState(searchParams.get('departmentCode') ?? '');
+  const [regionCode, setRegionCode] = useState(initialUnassigned ? '' : (searchParams.get('regionCode') ?? ''));
   const [employmentStatus, setEmploymentStatus] = useState(searchParams.get('employmentStatus') ?? '');
   const [applied, setApplied] = useState({
     query: searchParams.get('query') ?? '',
-    departmentCode: '',
+    departmentCode: searchParams.get('departmentCode') ?? '',
+    regionCode: initialUnassigned ? '' : (searchParams.get('regionCode') ?? ''),
+    unassignedOnly: initialUnassigned,
     employmentStatus: searchParams.get('employmentStatus') ?? '',
   });
   const [page, setPage] = useState(1);
@@ -48,18 +55,41 @@ export function EmployeesListPage() {
         pageSize: PAGE_SIZE,
         query: applied.query || undefined,
         departmentCode: applied.departmentCode || undefined,
+        regionCode: applied.unassignedOnly ? undefined : applied.regionCode || undefined,
+        unassignedRegion: applied.unassignedOnly || undefined,
         employmentStatus: applied.employmentStatus || undefined,
       }),
   });
+  const managers = useQuery({
+    queryKey: ['cms-users', 'region-managers'],
+    queryFn: () => fetchUsers({ page: 1, pageSize: 200, status: 'ACTIVE' }),
+    enabled: canReadUsers,
+  });
+  const managerNames = useMemo(
+    () => managersByRegion(managers.data?.items ?? []),
+    [managers.data?.items],
+  );
+  const publishFilters = (next: typeof applied) => {
+    const params = new URLSearchParams();
+    if (next.query) params.set('query', next.query);
+    if (next.departmentCode) params.set('departmentCode', next.departmentCode);
+    if (next.unassignedOnly) params.set('unassigned', '1');
+    else if (next.regionCode) params.set('regionCode', next.regionCode);
+    if (next.employmentStatus) params.set('employmentStatus', next.employmentStatus);
+    setSearchParams(params, { replace: true });
+    setApplied(next);
+  };
 
   const applyFilters = (status = employmentStatus, nextQuery = query) => {
     const trimmed = nextQuery.trim();
     setPage(1);
     setQuery(trimmed);
     setEmploymentStatus(status);
-    setApplied({
+    publishFilters({
       query: trimmed,
       departmentCode: departmentCode.trim(),
+      regionCode: regionCode.trim(),
+      unassignedOnly: false,
       employmentStatus: status,
     });
   };
@@ -69,6 +99,38 @@ export function EmployeesListPage() {
     { key: 'fullName', header: t('employees.name') },
     { key: 'workEmail', header: t('employees.workEmail'), render: (row) => row.workEmail || '—' },
     { key: 'departmentCode', header: t('employees.department') },
+    {
+      key: 'regionCode',
+      header: t('employees.region'),
+      sortValue: (row) => row.regionCode ?? '',
+      render: (row) => {
+        const code = row.regionCode?.trim();
+        if (!code) {
+          return (
+            <Link
+              to="/regions?unassigned=1"
+              className="text-[#fbbf24] hover:underline"
+              onClick={(event) => event.stopPropagation()}
+            >
+              {t('employees.unassignedRegion')}
+            </Link>
+          );
+        }
+        const owners = managerNames.get(code) ?? [];
+        return (
+          <span className="inline-flex flex-wrap items-center gap-x-2" onClick={(event) => event.stopPropagation()}>
+            <Link to={`/regions?region=${encodeURIComponent(code)}`} className="text-[#4ade80] hover:underline">
+              {code}
+            </Link>
+            {owners.map((owner) => (
+              <Link key={owner.id} to={`/users/${owner.id}`} className="text-[#9aa3b5] hover:underline">
+                {owner.name}
+              </Link>
+            ))}
+          </span>
+        );
+      },
+    },
     { key: 'position', header: t('employees.position'), render: (row) => row.position || '—' },
     {
       key: 'employmentStatus',
@@ -140,6 +202,9 @@ export function EmployeesListPage() {
                 <Link to="/employees/wallets/import">{t('employees.walletImportTitle')}</Link>
               </Button>
             ) : null}
+            <Button variant="outline" asChild>
+              <Link to="/regions">{t('nav.regions')}</Link>
+            </Button>
             {canImport ? (
               <Button asChild>
                 <Link to="/employees/import">{t('employees.importTitle')}</Link>
@@ -162,6 +227,12 @@ export function EmployeesListPage() {
           placeholder={t('employees.department')}
           value={departmentCode}
           onChange={(e) => setDepartmentCode(e.target.value)}
+        />
+        <Input
+          className="max-w-[140px]"
+          placeholder={t('employees.region')}
+          value={regionCode}
+          onChange={(e) => setRegionCode(e.target.value)}
         />
         <Select value={employmentStatus} onChange={(e) => setEmploymentStatus(e.target.value)}>
           <option value="">{t('common.all')}</option>

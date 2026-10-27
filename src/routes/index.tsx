@@ -5,6 +5,7 @@ import { LoginPage } from '@/pages/auth/login-page';
 import { ChangePasswordPage } from '@/pages/auth/change-password-page';
 import { DashboardPage } from '@/pages/dashboard/dashboard-page';
 import { EmployeesListPage } from '@/pages/employees/employees-list-page';
+import { EmployeeRegionsPage } from '@/pages/employees/employee-regions-page';
 import { EmployeeImportPage } from '@/pages/employees/employee-import-page';
 import { EmployeeWalletImportPage } from '@/pages/employees/employee-wallet-import-page';
 import { EmployeeDetailPage } from '@/pages/employees/employee-detail-page';
@@ -34,6 +35,7 @@ export function AppRoutes() {
             <Route element={<CmsPageGuard />}>
               <Route index element={<DashboardPage />} />
               <Route path="employees" element={<EmployeesListPage />} />
+              <Route path="regions" element={<EmployeeRegionsPage />} />
               <Route path="employees/import" element={<EmployeeImportPage />} />
               <Route path="employees/wallets/import" element={<EmployeeWalletImportPage />} />
               <Route path="employees/:id" element={<EmployeeDetailPage />} />

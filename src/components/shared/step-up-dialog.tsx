@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -23,21 +23,42 @@ export function StepUpDialog({
   const [otp, setOtp] = useState('');
   const [challengeId, setChallengeId] = useState('');
   const [loading, setLoading] = useState(false);
-  const [requested, setRequested] = useState(false);
+  const [ready, setReady] = useState(false);
+  const onVerifiedRef = useRef(onVerified);
+  const onCloseRef = useRef(onClose);
+  onVerifiedRef.current = onVerified;
+  onCloseRef.current = onClose;
 
-  const request = async () => {
+  useEffect(() => {
+    if (!open || !action) return;
+
+    let cancelled = false;
+    setOtp('');
+    setReady(false);
     setLoading(true);
-    try {
-      const result = await requestStepUp(action);
-      setChallengeId(result.challengeId);
-      setRequested(true);
-      toast.info(t('auth.stepUpDescription'));
-    } catch (error) {
-      toast.error(getApiErrorMessage(error));
-    } finally {
-      setLoading(false);
-    }
-  };
+
+    void requestStepUp(action)
+      .then((result) => {
+        if (cancelled) return;
+        if (result.mfaRequired === false) {
+          onVerifiedRef.current();
+          onCloseRef.current();
+          return;
+        }
+        setChallengeId(result.challengeId);
+        setReady(true);
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) toast.error(getApiErrorMessage(error));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, action]);
 
   const verify = async () => {
     setLoading(true);
@@ -47,7 +68,7 @@ export function StepUpDialog({
       onVerified();
       onClose();
       setOtp('');
-      setRequested(false);
+      setReady(false);
     } catch (error) {
       toast.error(getApiErrorMessage(error));
     } finally {
@@ -57,7 +78,7 @@ export function StepUpDialog({
 
   return (
     <Dialog
-      open={open}
+      open={open && ready}
       onClose={onClose}
       title={t('auth.stepUpTitle')}
       footer={
@@ -65,31 +86,24 @@ export function StepUpDialog({
           <Button variant="outline" onClick={onClose}>
             {t('common.cancel')}
           </Button>
-          {requested ? (
-            <Button onClick={() => void verify()} disabled={loading || otp.length !== 6}>
-              {loading ? t('auth.verifying') : t('auth.confirmOtp')}
-            </Button>
-          ) : (
-            <Button onClick={() => void request()} disabled={loading}>
-              {t('auth.stepUpAction')}
-            </Button>
-          )}
+          <Button onClick={() => void verify()} disabled={loading || otp.length !== 6}>
+            {loading ? t('auth.verifying') : t('auth.confirmOtp')}
+          </Button>
         </>
       }
     >
       <p className="mb-4 text-sm text-[#b8bfd0]">{t('auth.stepUpDescription')}</p>
-      {requested ? (
-        <div className="space-y-1.5">
-          <Label htmlFor="step-up-otp">{t('auth.otp')}</Label>
-          <Input
-            id="step-up-otp"
-            value={otp}
-            onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-            maxLength={6}
-            inputMode="numeric"
-          />
-        </div>
-      ) : null}
+      <div className="space-y-1.5">
+        <Label htmlFor="step-up-otp">{t('auth.otp')}</Label>
+        <Input
+          id="step-up-otp"
+          value={otp}
+          onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+          maxLength={6}
+          inputMode="numeric"
+          autoComplete="one-time-code"
+        />
+      </div>
     </Dialog>
   );
 }

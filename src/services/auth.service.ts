@@ -37,9 +37,10 @@ export async function changePassword(
 }
 
 export async function requestStepUp(action: string) {
-  return apiPost<{ challengeId: string; expiresAt: string }>(API_ENDPOINTS.AUTH.STEP_UP_REQUEST, {
-    action,
-  });
+  return apiPost<{ challengeId: string; expiresAt: string; mfaRequired?: boolean }>(
+    API_ENDPOINTS.AUTH.STEP_UP_REQUEST,
+    { action },
+  );
 }
 
 export async function verifyStepUp(challengeId: string, otp: string, action: string) {

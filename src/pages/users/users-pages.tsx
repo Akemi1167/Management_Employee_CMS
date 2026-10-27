@@ -1,17 +1,25 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import QRCode from 'qrcode';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
   Check,
   ChevronDown,
+  Copy,
   ClipboardList,
   FileUp,
+  KeyRound,
   Lock,
+  LockOpen,
+  MapPin,
+  QrCode,
   ScrollText,
+  Shield,
   ShieldAlert,
   ShieldCheck,
+  ShieldOff,
   Users,
   Wallet,
 } from 'lucide-react';
@@ -22,6 +30,7 @@ import { StatusBadge } from '@/components/shared/status-badge';
 import { CreateButton } from '@/components/shared/create-button';
 import { StepUpDialog } from '@/components/shared/step-up-dialog';
 import { Button } from '@/components/ui/button';
+import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
@@ -37,7 +46,7 @@ import {
   ROLE_PERMISSIONS,
   type AdminRole,
 } from '@/constants/rbac';
-import { getApiErrorMessage, isUnknownDtoFieldError } from '@/lib/api-client';
+import { getApiErrorMessage } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
 import { formatDate } from '@/lib/period';
 import {
@@ -48,11 +57,50 @@ import {
   enableUserMfa,
   fetchUser,
   fetchUsers,
+  resetUserPassword,
   updateUser,
 } from '@/services/user.service';
 import { UserSecurityPanel } from '@/pages/users/user-security-panel';
 import { useAuthStore } from '@/stores/auth-store';
 import type { AdminUser } from '@/types/api';
+
+function RowIcon({
+  title,
+  onClick,
+  to,
+  children,
+}: {
+  title: string;
+  onClick?: () => void;
+  to?: string;
+  children: React.ReactNode;
+}) {
+  if (to) {
+    return (
+      <Button variant="ghost" size="icon" className="size-8" title={title} asChild>
+        <Link to={to} onClick={(event) => event.stopPropagation()}>
+          {children}
+        </Link>
+      </Button>
+    );
+  }
+
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
+      className="size-8"
+      title={title}
+      onClick={(event) => {
+        event.stopPropagation();
+        onClick?.();
+      }}
+    >
+      {children}
+    </Button>
+  );
+}
 
 function runOrStepUp(error: unknown, onStepUp: () => void) {
   const message = getApiErrorMessage(error);
@@ -66,11 +114,24 @@ function runOrStepUp(error: unknown, onStepUp: () => void) {
 export function UsersListPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const currentUserId = useAuthStore((s) => s.user?.id);
   const canCreate = useAuthStore((s) => s.hasPermission(PERMISSION.USER_CREATE));
+  const canUpdate = useAuthStore((s) => s.hasPermission(PERMISSION.USER_UPDATE));
+  const canDisable = useAuthStore((s) => s.hasPermission(PERMISSION.USER_DISABLE));
+  const canAudit = useAuthStore((s) => s.hasPermission(PERMISSION.AUDIT_READ));
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('');
   const [role, setRole] = useState('');
   const [page, setPage] = useState(1);
+  const [statusUser, setStatusUser] = useState<AdminUser | null>(null);
+  const [resetUser, setResetUser] = useState<AdminUser | null>(null);
+  const [mfaOffUser, setMfaOffUser] = useState<AdminUser | null>(null);
+  const [reason, setReason] = useState('');
+  const [tempPassword, setTempPassword] = useState('');
+  const [enrollment, setEnrollment] = useState<{ secret: string; otpauthUrl: string } | null>(null);
+  const [qrDataUrl, setQrDataUrl] = useState('');
+  const [stepUp, setStepUp] = useState<{ action: string; retry: () => void } | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['cms-users', query, status, role, page],
@@ -84,6 +145,101 @@ export function UsersListPage() {
       }),
   });
 
+  const invalidate = () => {
+    void queryClient.invalidateQueries({ queryKey: ['cms-users'] });
+  };
+
+  useEffect(() => {
+    if (!enrollment) {
+      setQrDataUrl('');
+      return;
+    }
+    let cancelled = false;
+    void QRCode.toDataURL(enrollment.otpauthUrl, { margin: 1, width: 220 }).then((url) => {
+      if (!cancelled) setQrDataUrl(url);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [enrollment]);
+
+  const enableMfa = useMutation({
+    mutationFn: (user: AdminUser) => enableUserMfa(user.id, t('users.mfaToggleReason')),
+    onSuccess: (result) => {
+      if (result.totp) setEnrollment(result.totp);
+      toast.success(t('users.mfaEnabledNow'));
+      invalidate();
+    },
+    onError: (error, user) =>
+      runOrStepUp(error, () =>
+        setStepUp({ action: `user:update:${user.id}`, retry: () => enableMfa.mutate(user) }),
+      ),
+  });
+
+  const disableMfa = useMutation({
+    mutationFn: (user: AdminUser) => disableUserMfa(user.id, t('users.mfaToggleReason')),
+    onSuccess: () => {
+      setMfaOffUser(null);
+      toast.success(t('users.mfaDisabledNow'));
+      invalidate();
+    },
+    onError: (error, user) =>
+      runOrStepUp(error, () =>
+        setStepUp({ action: `user:update:${user.id}`, retry: () => disableMfa.mutate(user) }),
+      ),
+  });
+
+  const changeStatus = useMutation({
+    mutationFn: (user: AdminUser) =>
+      user.status === 'ACTIVE' ? disableUser(user.id, reason.trim()) : enableUser(user.id, reason.trim()),
+    onSuccess: () => {
+      toast.success(statusUser?.status === 'ACTIVE' ? t('users.disabled') : t('users.enabled'));
+      setStatusUser(null);
+      setReason('');
+      invalidate();
+    },
+    onError: (error, user) =>
+      runOrStepUp(error, () =>
+        setStepUp({
+          action: `user:disable:${user.id}`,
+          retry: () => changeStatus.mutate(user),
+        }),
+      ),
+  });
+
+  const resetPassword = useMutation({
+    mutationFn: (user: AdminUser) => resetUserPassword(user.id, reason.trim()),
+    onSuccess: (result) => {
+      setTempPassword(result.temporaryPassword);
+      setReason('');
+      toast.success(t('users.passwordReset'));
+      invalidate();
+    },
+    onError: (error, user) =>
+      runOrStepUp(error, () =>
+        setStepUp({ action: `user:update:${user.id}`, retry: () => resetPassword.mutate(user) }),
+      ),
+  });
+
+  const openStatus = (user: AdminUser) => {
+    setReason('');
+    setStatusUser(user);
+  };
+
+  const openReset = (user: AdminUser) => {
+    setReason('');
+    setTempPassword('');
+    setResetUser(user);
+  };
+
+  const toggleMfa = (user: AdminUser) => {
+    if (user.mfaEnabled) {
+      setMfaOffUser(user);
+      return;
+    }
+    enableMfa.mutate(user);
+  };
+
   const columns: Column<AdminUser>[] = [
     { key: 'username', header: t('users.username') },
     { key: 'fullName', header: t('users.fullName') },
@@ -94,6 +250,28 @@ export function UsersListPage() {
       sortValue: (row) => row.roles.map((role) => t(`roles.${role}`)).join(', '),
       render: (row) => row.roles.map((role) => t(`roles.${role}`)).join(', '),
     },
+    {
+      key: 'regions',
+      header: t('users.regions'),
+      sortValue: (row) => row.dataScope.regionCodes?.join(', ') ?? '',
+      render: (row) => {
+        const codes = row.dataScope.regionCodes ?? [];
+        if (codes.length === 0) return row.dataScope.allEmployees ? t('users.allEmployees') : '—';
+        return (
+          <span className="flex flex-wrap gap-x-2 gap-y-1" onClick={(event) => event.stopPropagation()}>
+            {codes.map((code) => (
+              <Link
+                key={code}
+                to={`/regions?region=${encodeURIComponent(code)}`}
+                className="text-[#4ade80] hover:underline"
+              >
+                {code}
+              </Link>
+            ))}
+          </span>
+        );
+      },
+    },
     { key: 'status', header: t('common.status'), render: (row) => <StatusBadge value={row.status} ns="userStatus" /> },
     {
       key: 'mfaEnabled',
@@ -101,6 +279,62 @@ export function UsersListPage() {
       render: (row) => (row.mfaEnabled ? t('users.mfaOn') : t('users.mfaOff')),
     },
     { key: 'lastLoginAt', header: t('audit.occurredAt'), render: (row) => formatDate(row.lastLoginAt) },
+    {
+      key: 'actions',
+      header: t('common.actions'),
+      sortable: false,
+      className: 'w-px whitespace-nowrap',
+      render: (row) => {
+        const isSelf = row.id === currentUserId;
+        const canMfa = canUpdate || isSelf;
+        return (
+          <div className="flex items-center gap-0.5" onClick={(event) => event.stopPropagation()}>
+            {canMfa ? (
+              <RowIcon title={row.mfaEnabled ? t('users.mfaDisable') : t('users.mfaEnable')} onClick={() => toggleMfa(row)}>
+                {row.mfaEnabled ? (
+                  <ShieldOff className="h-4 w-4 text-[#fbbf24]" />
+                ) : (
+                  <ShieldCheck className="h-4 w-4 text-[#4ade80]" />
+                )}
+              </RowIcon>
+            ) : null}
+            {row.mfaEnabled && canMfa ? (
+              <RowIcon title={t('users.mfaRegenerate')} onClick={() => enableMfa.mutate(row)}>
+                <QrCode className="h-4 w-4" />
+              </RowIcon>
+            ) : null}
+            {canDisable && !isSelf ? (
+              <RowIcon
+                title={row.status === 'ACTIVE' ? t('users.disable') : t('users.enable')}
+                onClick={() => openStatus(row)}
+              >
+                {row.status === 'ACTIVE' ? (
+                  <Lock className="h-4 w-4 text-[#f87171]" />
+                ) : (
+                  <LockOpen className="h-4 w-4 text-[#4ade80]" />
+                )}
+              </RowIcon>
+            ) : null}
+            {canUpdate && !isSelf ? (
+              <RowIcon title={t('users.resetPassword')} onClick={() => openReset(row)}>
+                <KeyRound className="h-4 w-4 text-[#fbbf24]" />
+              </RowIcon>
+            ) : null}
+            <RowIcon title={t('users.tabs.access')} to={`/users/${row.id}?tab=access`}>
+              <Shield className="h-4 w-4" />
+            </RowIcon>
+            <RowIcon title={t('users.tabs.scope')} to={`/users/${row.id}?tab=scope`}>
+              <MapPin className="h-4 w-4" />
+            </RowIcon>
+            {canAudit ? (
+              <RowIcon title={t('users.tabs.activity')} to={`/users/${row.id}?tab=activity`}>
+                <ScrollText className="h-4 w-4" />
+              </RowIcon>
+            ) : null}
+          </div>
+        );
+      },
+    },
   ];
 
   return (
@@ -142,6 +376,120 @@ export function UsersListPage() {
         onRowClick={(row) => navigate(`/users/${row.id}`)}
         pagination={{ page, pageSize: 20, total: data?.total ?? 0, onPageChange: setPage }}
       />
+      <Dialog
+        open={Boolean(statusUser)}
+        onClose={() => {
+          if (!changeStatus.isPending) setStatusUser(null);
+        }}
+        title={statusUser?.status === 'ACTIVE' ? t('users.disable') : t('users.enable')}
+        footer={
+          <Button
+            type="button"
+            variant={statusUser?.status === 'ACTIVE' ? 'destructive' : 'default'}
+            disabled={reason.trim().length < 10 || changeStatus.isPending || !statusUser}
+            onClick={() => statusUser && changeStatus.mutate(statusUser)}
+          >
+            {statusUser?.status === 'ACTIVE' ? t('users.disable') : t('users.enable')}
+          </Button>
+        }
+      >
+        <p className="mb-3 text-sm text-[#b8bfd0]">{statusUser?.username}</p>
+        <div className="space-y-1.5">
+          <Label>{statusUser?.status === 'ACTIVE' ? t('users.disableReason') : t('users.enableReason')}</Label>
+          <Input value={reason} onChange={(event) => setReason(event.target.value)} />
+        </div>
+      </Dialog>
+      <Dialog
+        open={Boolean(resetUser)}
+        onClose={() => {
+          if (!resetPassword.isPending) {
+            setResetUser(null);
+            setTempPassword('');
+          }
+        }}
+        title={t('users.resetPassword')}
+        footer={
+          tempPassword ? null : (
+            <Button
+              type="button"
+              disabled={reason.trim().length < 10 || resetPassword.isPending || !resetUser}
+              onClick={() => resetUser && resetPassword.mutate(resetUser)}
+            >
+              {t('users.resetPassword')}
+            </Button>
+          )
+        }
+      >
+        <p className="mb-3 text-sm text-[#b8bfd0]">{resetUser?.username}</p>
+        {tempPassword ? (
+          <p className="rounded-xl border border-[#fbbf24]/40 bg-[#fbbf24]/10 p-3 text-sm text-[#fbbf24]">
+            {t('users.temporaryPassword')}: <strong>{tempPassword}</strong>
+          </p>
+        ) : (
+          <div className="space-y-1.5">
+            <Label>{t('users.resetReason')}</Label>
+            <Input value={reason} onChange={(event) => setReason(event.target.value)} />
+          </div>
+        )}
+      </Dialog>
+      <Dialog
+        open={Boolean(mfaOffUser)}
+        onClose={() => {
+          if (!disableMfa.isPending) setMfaOffUser(null);
+        }}
+        title={t('users.mfaDisable')}
+        footer={
+          <Button
+            type="button"
+            variant="destructive"
+            disabled={disableMfa.isPending || !mfaOffUser}
+            onClick={() => mfaOffUser && disableMfa.mutate(mfaOffUser)}
+          >
+            {t('users.mfaDisable')}
+          </Button>
+        }
+      >
+        <p className="text-sm text-[#b8bfd0]">{t('users.mfaDisableConfirm', { username: mfaOffUser?.username })}</p>
+      </Dialog>
+      <Dialog open={Boolean(enrollment)} onClose={() => setEnrollment(null)} title={t('users.mfaSetupTitle')}>
+        <div className="space-y-4">
+          <p className="text-sm text-[#b8bfd0]">{t('users.mfaSetupHint')}</p>
+          {qrDataUrl ? (
+            <img
+              src={qrDataUrl}
+              alt={t('users.mfaSetupTitle')}
+              className="mx-auto h-52 w-52 rounded-lg bg-white p-2"
+            />
+          ) : null}
+          <div className="space-y-1.5">
+            <Label>{t('users.mfaSecret')}</Label>
+            <div className="flex items-center gap-2">
+              <code className="min-w-0 flex-1 break-all rounded-lg border border-[#2a3040] bg-[#1a1e28] px-3 py-2 text-sm">
+                {enrollment?.secret}
+              </code>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => {
+                  if (!enrollment) return;
+                  void navigator.clipboard.writeText(enrollment.secret).then(() => {
+                    toast.success(t('users.mfaCopied'));
+                  });
+                }}
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Dialog>
+      <StepUpDialog
+        open={Boolean(stepUp)}
+        action={stepUp?.action ?? ''}
+        onClose={() => setStepUp(null)}
+        onVerified={() => stepUp?.retry()}
+      />
     </PageContainer>
   );
 }
@@ -156,11 +504,20 @@ const ROLE_ICONS: Record<AdminRole, typeof FileUp> = {
   system_admin: Users,
 };
 
+function regionCodesOf(value: string) {
+  return value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 function permissionLabel(t: (key: string) => string, code: string) {
   return t(`permission.${permissionI18nKey(code)}`);
 }
 
-function UserForm({ existing }: { existing?: AdminUser }) {
+type UserFormPanel = 'all' | 'account' | 'access' | 'scope' | 'security';
+
+function UserForm({ existing, panel = 'all' }: { existing?: AdminUser; panel?: UserFormPanel }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -174,13 +531,33 @@ function UserForm({ existing }: { existing?: AdminUser }) {
   const [extraPermissions, setExtraPermissions] = useState<string[]>(existing?.extraPermissions ?? []);
   const [allEmployees, setAllEmployees] = useState(existing?.dataScope.allEmployees ?? false);
   const [departments, setDepartments] = useState(existing?.dataScope.departmentCodes.join(', ') ?? '');
-  const [mfaEnabled, setMfaEnabled] = useState(existing?.mfaEnabled ?? false);
+  const [regions, setRegions] = useState(existing?.dataScope.regionCodes?.join(', ') ?? '');
   const [disableReason, setDisableReason] = useState('');
   const [enableReason, setEnableReason] = useState('');
   const [tempPassword, setTempPassword] = useState('');
   const [showExtras, setShowExtras] = useState(() => (existing?.extraPermissions.length ?? 0) > 0);
   const [showEffective, setShowEffective] = useState(false);
   const [stepUp, setStepUp] = useState<{ action: string; retry: () => void } | null>(null);
+  const [statusOpen, setStatusOpen] = useState(false);
+
+  useEffect(() => {
+    if (!existing) return;
+    setUsername(existing.username);
+    setEmail(existing.email);
+    setFullName(existing.fullName);
+    setRoles(existing.roles ?? []);
+    setExtraPermissions(existing.extraPermissions ?? []);
+    setAllEmployees(existing.dataScope.allEmployees);
+    setDepartments(existing.dataScope.departmentCodes.join(', '));
+    setRegions(existing.dataScope.regionCodes?.join(', ') ?? '');
+    setShowExtras((existing.extraPermissions ?? []).length > 0);
+  }, [existing?.id]);
+
+  const showAccount = panel === 'all' || panel === 'account';
+  const showAccess = panel === 'all' || panel === 'access';
+  const showScope = panel === 'all' || panel === 'scope';
+  const showSecurity = panel === 'all' || panel === 'security';
+  const showSave = panel !== 'security';
 
   const roleGranted = useMemo(() => permissionsFromRoles(roles), [roles]);
   const extraChoices = useMemo(
@@ -213,25 +590,6 @@ function UserForm({ existing }: { existing?: AdminUser }) {
   );
   const lockedBySelf = isSelf;
 
-  const syncMfaIfNeeded = async (userId: string, previous?: boolean) => {
-    if (previous === mfaEnabled) return;
-    if (previous === undefined && !mfaEnabled) return;
-    try {
-      if (mfaEnabled) {
-        await enableUserMfa(userId, t('users.mfaToggleReason'));
-      } else {
-        await disableUserMfa(userId, t('users.mfaToggleReason'));
-      }
-    } catch (error) {
-      const status = (error as { response?: { status?: number } }).response?.status;
-      if (status === 404 || isUnknownDtoFieldError(error, 'mfaEnabled')) {
-        toast.warning(t('users.mfaApiUnsupported'));
-        return;
-      }
-      throw error;
-    }
-  };
-
   const save = useMutation({
     mutationFn: async () => {
       if (existing && isSelf) {
@@ -254,14 +612,16 @@ function UserForm({ existing }: { existing?: AdminUser }) {
             .split(',')
             .map((item) => item.trim())
             .filter(Boolean),
+          regionCodes: regions
+            .split(',')
+            .map((item) => item.trim())
+            .filter(Boolean),
         },
       };
       if (existing) {
         return updateUser(existing.id, body);
       }
-      const created = await createUser({ ...body, username });
-      await syncMfaIfNeeded(created.user.id);
-      return created;
+      return createUser({ ...body, username });
     },
     onSuccess: (result) => {
       if ('temporaryPassword' in result) {
@@ -283,6 +643,8 @@ function UserForm({ existing }: { existing?: AdminUser }) {
     mutationFn: () => disableUser(existing!.id, disableReason),
     onSuccess: () => {
       toast.success(t('users.disabled'));
+      setStatusOpen(false);
+      setDisableReason('');
       void queryClient.invalidateQueries({ queryKey: ['cms-users'] });
       void queryClient.invalidateQueries({ queryKey: ['cms-user', existing?.id] });
     },
@@ -296,6 +658,8 @@ function UserForm({ existing }: { existing?: AdminUser }) {
     mutationFn: () => enableUser(existing!.id, enableReason),
     onSuccess: () => {
       toast.success(t('users.enabled'));
+      setStatusOpen(false);
+      setEnableReason('');
       void queryClient.invalidateQueries({ queryKey: ['cms-users'] });
       void queryClient.invalidateQueries({ queryKey: ['cms-user', existing?.id] });
     },
@@ -331,14 +695,14 @@ function UserForm({ existing }: { existing?: AdminUser }) {
           save.mutate();
         }}
       >
-        {lockedBySelf ? (
+        {lockedBySelf && (showAccount || showAccess || showScope) ? (
           <div className="flex gap-3 rounded-xl border border-[#fbbf24]/35 bg-[#fbbf24]/10 px-4 py-3 text-sm text-[#fbbf24]">
             <ShieldAlert className="mt-0.5 size-4 shrink-0" />
             <p>{t('users.cannotEditSelfBanner')}</p>
           </div>
         ) : null}
 
-        <section className={`${cardClass} space-y-4 p-6`}>
+        {showAccount ? <section className={`${cardClass} space-y-4 p-6`}>
           <h2 className="flex items-center gap-2.5 text-sm font-semibold text-[#eef0f6]">
             <span className={sectionAccent} />
             {t('users.accountSection')}
@@ -376,24 +740,23 @@ function UserForm({ existing }: { existing?: AdminUser }) {
               />
             </div>
           </div>
-          {!existing ? (
-            <div className="flex items-start justify-between gap-4 rounded-lg border border-[#2a3040] bg-[#1a1e28]/50 px-3 py-3">
-              <div>
-                <p className="text-sm font-medium text-[#eef0f6]">{t('users.mfa')}</p>
-                <p className={cn('mt-1 text-xs', textSubtle)}>{t('users.mfaHint')}</p>
-              </div>
-              <Switch checked={mfaEnabled} onCheckedChange={setMfaEnabled} />
-            </div>
-          ) : null}
-        </section>
+        </section> : null}
 
-        <section className={`${cardClass} space-y-4 p-6`}>
+        {showAccess ? <section className={`${cardClass} space-y-4 p-6`}>
           <div>
             <h2 className="flex items-center gap-2.5 text-sm font-semibold text-[#eef0f6]">
               <span className={sectionAccent} />
               {t('users.accessSection')}
             </h2>
             <p className={cn('mt-1.5 text-sm', textSubtle)}>{t('users.rolesHint')}</p>
+            {existing ? (
+              <p className="mt-2 text-sm text-[#eef0f6]">
+                {t('users.editingAccount', {
+                  username: existing.username,
+                  roles: existing.roles.map((role) => t(`roles.${role}`)).join(', '),
+                })}
+              </p>
+            ) : null}
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
@@ -525,7 +888,7 @@ function UserForm({ existing }: { existing?: AdminUser }) {
                 <p className={cn('mt-0.5 text-xs', textSubtle)}>
                   {extrasToSave.length
                     ? t('users.extraPermissionsCount', { count: extrasToSave.length })
-                    : t('users.extraPermissionsHint')}
+                    : t('users.extraPermissionsNotOwned')}
                 </p>
               </div>
               <ChevronDown className={cn('size-4 shrink-0 text-[#9aa3b5] transition-transform', showExtras && 'rotate-180')} />
@@ -572,9 +935,9 @@ function UserForm({ existing }: { existing?: AdminUser }) {
               </div>
             ) : null}
           </div>
-        </section>
+        </section> : null}
 
-        <section className={`${cardClass} space-y-4 p-6`}>
+        {showScope ? <section className={`${cardClass} space-y-4 p-6`}>
           <div>
             <h2 className="flex items-center gap-2.5 text-sm font-semibold text-[#eef0f6]">
               <span className={sectionAccent} />
@@ -605,46 +968,95 @@ function UserForm({ existing }: { existing?: AdminUser }) {
               />
             </div>
           ) : null}
-        </section>
+          <div className="space-y-1.5">
+            <Label htmlFor="user-regions">{t('users.regions')}</Label>
+            <Input
+              id="user-regions"
+              value={regions}
+              onChange={(e) => setRegions(e.target.value)}
+              disabled={lockedBySelf}
+              placeholder={t('users.regionsPlaceholder')}
+            />
+            <p className={cn('text-xs', textSubtle)}>{t('users.regionsHint')}</p>
+            {regionCodesOf(regions).length > 0 ? (
+              <div className="flex flex-wrap gap-x-3 gap-y-1">
+                {regionCodesOf(regions).map((code) => (
+                  <Link
+                    key={code}
+                    to={`/regions?region=${encodeURIComponent(code)}`}
+                    className="text-xs text-[#4ade80] hover:underline"
+                  >
+                    {t('users.viewRegionEmployees', { region: code })}
+                  </Link>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        </section> : null}
 
-        {tempPassword ? (
+        {tempPassword && showSave ? (
           <p className="rounded-xl border border-[#fbbf24]/40 bg-[#fbbf24]/10 p-3 text-sm text-[#fbbf24]">
             {t('users.temporaryPassword')}: <strong>{tempPassword}</strong>
           </p>
         ) : null}
 
-        <Button
-          type="submit"
-          disabled={save.isPending || (!lockedBySelf && (conflicts.length > 0 || roles.length === 0))}
-        >
-          {t('common.save')}
-        </Button>
+        {showSave ? (
+          <Button
+            type="submit"
+            disabled={save.isPending || (!lockedBySelf && (conflicts.length > 0 || roles.length === 0))}
+          >
+            {t('common.save')}
+          </Button>
+        ) : null}
       </form>
-      {existing && !isSelf ? (
-        <div className={`${cardClass} mt-4 space-y-6 p-6`}>
-          {existing.status !== 'ACTIVE' ? (
-            <div className="space-y-3">
-              <Label>{t('users.enableReason')}</Label>
-              <Input value={enableReason} onChange={(e) => setEnableReason(e.target.value)} />
-              <Button disabled={enableReason.length < 10 || enable.isPending} onClick={() => enable.mutate()}>
-                {t('users.enable')}
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <Label>{t('users.disableReason')}</Label>
-              <Input value={disableReason} onChange={(e) => setDisableReason(e.target.value)} />
-              <Button
-                variant="destructive"
-                disabled={disableReason.length < 10 || disable.isPending}
-                onClick={() => disable.mutate()}
-              >
-                {t('users.disable')}
-              </Button>
-            </div>
-          )}
+      {showSecurity && existing && !isSelf ? (
+        <div className={`${cardClass} flex flex-wrap items-center justify-between gap-3 p-6`}>
+          <div>
+            <p className="text-sm font-medium text-[#eef0f6]">{t('common.status')}</p>
+            <p className={cn('mt-1 text-sm', textSubtle)}>{t(`userStatus.${existing.status}`)}</p>
+          </div>
+          <Button
+            type="button"
+            variant={existing.status === 'ACTIVE' ? 'destructive' : 'default'}
+            onClick={() => setStatusOpen(true)}
+          >
+            {existing.status === 'ACTIVE' ? t('users.disable') : t('users.enable')}
+          </Button>
         </div>
       ) : null}
+      <Dialog
+        open={statusOpen}
+        onClose={() => {
+          if (!disable.isPending && !enable.isPending) setStatusOpen(false);
+        }}
+        title={existing?.status === 'ACTIVE' ? t('users.disable') : t('users.enable')}
+        footer={
+          <Button
+            type="button"
+            variant={existing?.status === 'ACTIVE' ? 'destructive' : 'default'}
+            disabled={
+              (existing?.status === 'ACTIVE' ? disableReason.length < 10 : enableReason.length < 10) ||
+              disable.isPending ||
+              enable.isPending
+            }
+            onClick={() => (existing?.status === 'ACTIVE' ? disable.mutate() : enable.mutate())}
+          >
+            {existing?.status === 'ACTIVE' ? t('users.disable') : t('users.enable')}
+          </Button>
+        }
+      >
+        <div className="space-y-1.5">
+          <Label>{existing?.status === 'ACTIVE' ? t('users.disableReason') : t('users.enableReason')}</Label>
+          <Input
+            value={existing?.status === 'ACTIVE' ? disableReason : enableReason}
+            onChange={(event) =>
+              existing?.status === 'ACTIVE'
+                ? setDisableReason(event.target.value)
+                : setEnableReason(event.target.value)
+            }
+          />
+        </div>
+      </Dialog>
       <StepUpDialog
         open={Boolean(stepUp)}
         action={stepUp?.action ?? ''}
@@ -673,29 +1085,69 @@ export function UserCreatePage() {
   );
 }
 
+const USER_TABS = ['account', 'access', 'scope', 'security', 'activity'] as const;
+type UserTab = (typeof USER_TABS)[number];
+
 export function UserDetailPage() {
   const { t } = useTranslation();
   const { id = '' } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const canAudit = useAuthStore((s) => s.hasPermission(PERMISSION.AUDIT_READ));
   const { data } = useQuery({
     queryKey: ['cms-user', id],
     queryFn: () => fetchUser(id),
     enabled: Boolean(id),
   });
+  const requested = searchParams.get('tab');
+  const tab: UserTab =
+    USER_TABS.includes(requested as UserTab) && (requested !== 'activity' || canAudit)
+      ? (requested as UserTab)
+      : 'account';
+  const tabs: UserTab[] = canAudit
+    ? ['account', 'access', 'scope', 'security', 'activity']
+    : ['account', 'access', 'scope', 'security'];
 
   return (
-    <PageContainer variant="narrow">
+    <PageContainer>
       <PageHeader
-        title={data?.username ?? t('users.title')}
+        title={data?.fullName || data?.username || t('users.title')}
+        description={data?.username}
         actions={
           <Button variant="outline" asChild>
             <Link to="/users">{t('common.back')}</Link>
           </Button>
         }
       />
+      <div className="mb-6 flex flex-wrap gap-1 border-b border-[#2a3040]">
+        {tabs.map((item) => (
+          <button
+            key={item}
+            type="button"
+            className={cn(
+              '-mb-px border-b-2 px-3 py-2 text-sm',
+              tab === item
+                ? 'border-[#16a34a] text-[#eef0f6]'
+                : 'border-transparent text-[#9aa3b5] hover:text-[#eef0f6]',
+            )}
+            onClick={() => setSearchParams({ tab: item })}
+          >
+            {t(`users.tabs.${item}`)}
+          </button>
+        ))}
+      </div>
       {data ? (
         <>
-          <UserForm existing={data} />
-          <UserSecurityPanel user={data} />
+          <UserSecurityPanel key={`${data.id}-mfa`} user={data} part="mfa" />
+          {tab === 'security' ? null : tab === 'activity' ? null : (
+            <UserForm key={`${data.id}-${tab}`} existing={data} panel={tab} />
+          )}
+          {tab === 'security' ? (
+            <div className="mt-4 space-y-4">
+              <UserForm key={`${data.id}-security`} existing={data} panel="security" />
+              <UserSecurityPanel key={`${data.id}-password`} user={data} part="security" />
+            </div>
+          ) : null}
+          {tab === 'activity' ? <UserSecurityPanel key={`${data.id}-activity`} user={data} part="activity" /> : null}
         </>
       ) : (
         <p className="text-sm text-[#b8bfd0]">{t('common.loading')}</p>

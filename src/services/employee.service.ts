@@ -24,6 +24,18 @@ export function fetchEmployee(id: string) {
   return apiGet<Employee>(`${API_ENDPOINTS.EMPLOYEES}/${id}`);
 }
 
+export function assignEmployeeRegions(body: {
+  regionCode: string;
+  departmentCodes?: string[];
+  employeeCodes?: string[];
+  reason: string;
+}) {
+  return apiPost<{ regionCode: string; matched: number; modified: number }>(
+    `${API_ENDPOINTS.EMPLOYEES}/regions/assign`,
+    body,
+  );
+}
+
 export function deleteEmployee(id: string, reason: string) {
   return apiPost<{ id: string; employeeCode: string }>(
     `${API_ENDPOINTS.EMPLOYEES}/${id}/delete`,
@@ -37,6 +49,7 @@ export function updateEmployee(
     fullName?: string;
     workEmail?: string | null;
     departmentCode?: string;
+    regionCode?: string | null;
     position?: string | null;
     hiredAt?: string;
     employmentStatus?: string;

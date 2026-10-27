@@ -37,7 +37,6 @@ export function LoginPage() {
       if (isMfaRequired(result)) {
         setMfaToken(result.mfaToken);
         setStep('otp');
-        toast.info(t('auth.otpHint'));
         return;
       }
       await finish(result);
@@ -114,6 +113,7 @@ export function LoginPage() {
                 <form onSubmit={(e) => void handleOtpSubmit(e)} className="space-y-4">
                   <div className="space-y-1.5">
                     <Label htmlFor="otp">{t('auth.otp')}</Label>
+                    <p className="text-xs text-[#9aa3b5]">{t('auth.otpHint')}</p>
                     <Input
                       id="otp"
                       value={otp}

@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   ListChecks,
   Lock,
+  MapPin,
   ScrollText,
   ShieldCheck,
   Upload,
@@ -42,6 +43,12 @@ export const NAVIGATION: NavGroup[] = [
         labelKey: 'nav.employees',
         to: '/employees',
         icon: Users,
+        permission: PERMISSION.EMPLOYEE_READ,
+      },
+      {
+        labelKey: 'nav.regions',
+        to: '/regions',
+        icon: MapPin,
         permission: PERMISSION.EMPLOYEE_READ,
       },
       {
@@ -166,6 +173,7 @@ export const NAVIGATION: NavGroup[] = [
 
 export const PATH_PERMISSIONS: Array<{ match: string; permission?: string; permissions?: string[] }> = [
   { match: '/', permission: undefined },
+  { match: '/regions', permission: PERMISSION.EMPLOYEE_READ },
   { match: '/employees/wallets/import', permission: PERMISSION.WALLET_WRITE },
   { match: '/employees/import', permission: PERMISSION.EMPLOYEE_WRITE },
   { match: '/employees', permission: PERMISSION.EMPLOYEE_READ },

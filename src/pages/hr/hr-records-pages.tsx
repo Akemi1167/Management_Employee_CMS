@@ -551,7 +551,7 @@ export function PayrollListPage() {
             <p className="mb-1 font-medium text-[#eef0f6]">{t('payroll.components')}</p>
             {editing.components.map((item) => (
               <p key={`${item.code}-${item.label}`}>
-                {item.label ?? item.code}: {moneyText(item.amount == null ? null : String(item.amount))}
+                {item.label ?? item.code}: {moneyText(item.amount)}
               </p>
             ))}
           </div>

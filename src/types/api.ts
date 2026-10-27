@@ -23,6 +23,7 @@ export interface Listed<T> {
 export interface DataScope {
   allEmployees: boolean;
   departmentCodes: string[];
+  regionCodes?: string[];
   employeeIds: string[];
 }
 
@@ -136,6 +137,7 @@ export interface Employee {
   fullName: string;
   workEmail: string | null;
   departmentCode: string;
+  regionCode?: string | null;
   position: string | null;
   employmentStatus: string;
   hiredAt: string;

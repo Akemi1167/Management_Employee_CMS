@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -19,6 +19,7 @@ import { Select } from '@/components/ui/select';
 import { cardClass, textSubtle } from '@/constants/theme';
 import { PERMISSION } from '@/constants/api-endpoints';
 import { getApiErrorCode, getApiErrorMessage, moneyText } from '@/lib/api-client';
+import { managersByRegion } from '@/lib/region-managers';
 import { dateInputToIso, formatDate, formatDay, toDateInput } from '@/lib/period';
 import { hasAssignedWallet } from '@/lib/wallet-workflow';
 import {
@@ -38,6 +39,7 @@ import {
   type WalletPlatform,
 } from '@/services/employee.service';
 import { fetchAttendance, fetchPayroll, fetchPenalties } from '@/services/hr-records.service';
+import { fetchUsers } from '@/services/user.service';
 import { useAuthStore } from '@/stores/auth-store';
 import type {
   AttendanceRecord,
@@ -228,9 +230,22 @@ function EmployeeProfileCard({ employee }: { employee: Employee }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const canUpdate = useAuthStore((s) => s.hasPermission(PERMISSION.EMPLOYEE_UPDATE));
+  const canReadUsers = useAuthStore((s) => s.hasPermission(PERMISSION.USER_READ));
+  const managers = useQuery({
+    queryKey: ['cms-users', 'region-managers'],
+    queryFn: () => fetchUsers({ page: 1, pageSize: 200, status: 'ACTIVE' }),
+    enabled: canReadUsers,
+  });
+  const managerNames = useMemo(
+    () => managersByRegion(managers.data?.items ?? []),
+    [managers.data?.items],
+  );
+  const savedRegion = employee.regionCode?.trim() ?? '';
+  const regionOwners = savedRegion ? (managerNames.get(savedRegion) ?? []) : [];
   const [fullName, setFullName] = useState(employee.fullName);
   const [workEmail, setWorkEmail] = useState(employee.workEmail ?? '');
   const [departmentCode, setDepartmentCode] = useState(employee.departmentCode);
+  const [regionCode, setRegionCode] = useState(employee.regionCode ?? '');
   const [position, setPosition] = useState(employee.position ?? '');
   const [hiredAt, setHiredAt] = useState(toDateInput(employee.hiredAt));
   const [employmentStatus, setEmploymentStatus] = useState(employee.employmentStatus);
@@ -245,6 +260,7 @@ function EmployeeProfileCard({ employee }: { employee: Employee }) {
     setFullName(employee.fullName);
     setWorkEmail(employee.workEmail ?? '');
     setDepartmentCode(employee.departmentCode);
+    setRegionCode(employee.regionCode ?? '');
     setPosition(employee.position ?? '');
     setHiredAt(toDateInput(employee.hiredAt));
     setEmploymentStatus(employee.employmentStatus);
@@ -296,6 +312,11 @@ function EmployeeProfileCard({ employee }: { employee: Employee }) {
       if (terminatedIso) body.terminatedAt = terminatedIso;
     } else {
       body.terminatedAt = null;
+    }
+    const nextRegion = regionCode.trim();
+    const currentRegion = employee.regionCode?.trim() ?? '';
+    if (nextRegion !== currentRegion) {
+      body.regionCode = nextRegion || null;
     }
     return body;
   };
@@ -363,6 +384,32 @@ function EmployeeProfileCard({ employee }: { employee: Employee }) {
       <h2 className="mb-3 text-sm font-semibold text-[#eef0f6]">{t('employees.detail')}</h2>
       <div className="mb-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Field label={t('employees.code')} value={employee.employeeCode} />
+        <div>
+          <p className="text-[11px] uppercase text-[#9aa3b5]">{t('employees.region')}</p>
+          <p className="text-sm">{savedRegion || '—'}</p>
+          {savedRegion && canReadUsers ? (
+            <p className="mt-1 text-xs text-[#9aa3b5]">
+              {t('employees.managedBy')}:{' '}
+              {regionOwners.length > 0 ? (
+                regionOwners.map((owner) => (
+                  <Link key={owner.id} to={`/users/${owner.id}`} className="mr-2 text-[#4ade80] hover:underline">
+                    {owner.name}
+                  </Link>
+                ))
+              ) : (
+                <Link to="/users" className="text-[#4ade80] hover:underline">
+                  {t('employees.noManager')}
+                </Link>
+              )}
+            </p>
+          ) : null}
+          <Link
+            to={savedRegion ? `/regions?region=${encodeURIComponent(savedRegion)}` : '/regions?unassigned=1'}
+            className="mt-1 inline-block text-xs text-[#4ade80] hover:underline"
+          >
+            {savedRegion ? t('employees.sameRegion') : t('employees.unassignedRegion')}
+          </Link>
+        </div>
         <Field label={t('employees.workEmail')} value={employee.workEmail || '—'} />
         <div>
           <p className="text-[11px] uppercase text-[#9aa3b5]">{t('common.status')}</p>
@@ -393,6 +440,14 @@ function EmployeeProfileCard({ employee }: { employee: Employee }) {
             <div className="space-y-1.5">
               <Label>{t('employees.department')}</Label>
               <Input value={departmentCode} onChange={(e) => setDepartmentCode(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('employees.region')}</Label>
+              <Input
+                value={regionCode}
+                placeholder={t('employees.regionPlaceholder')}
+                onChange={(e) => setRegionCode(e.target.value)}
+              />
             </div>
             <div className="space-y-1.5">
               <Label>{t('employees.position')}</Label>

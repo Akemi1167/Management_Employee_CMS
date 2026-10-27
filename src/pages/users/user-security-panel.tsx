@@ -1,13 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { KeyRound, ScrollText, ShieldCheck } from 'lucide-react';
+import QRCode from 'qrcode';
+import { Copy, KeyRound, ScrollText, ShieldCheck } from 'lucide-react';
 import { DataTable, type Column } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { StepUpDialog } from '@/components/shared/step-up-dialog';
 import { Button } from '@/components/ui/button';
+import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -40,7 +42,13 @@ function runOrStepUp(error: unknown, onStepUp: () => void) {
   toast.error(message);
 }
 
-export function UserSecurityPanel({ user }: { user: AdminUser }) {
+export function UserSecurityPanel({
+  user,
+  part = 'all',
+}: {
+  user: AdminUser;
+  part?: 'all' | 'mfa' | 'security' | 'activity';
+}) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const currentUserId = useAuthStore((s) => s.user?.id);
@@ -52,9 +60,12 @@ export function UserSecurityPanel({ user }: { user: AdminUser }) {
   const [passwordReason, setPasswordReason] = useState('');
   const [mustChangePassword, setMustChangePassword] = useState(true);
   const [resetReason, setResetReason] = useState('');
+  const [resetOpen, setResetOpen] = useState(false);
   const [tempPassword, setTempPassword] = useState('');
   const [activityPage, setActivityPage] = useState(1);
   const [stepUp, setStepUp] = useState<{ action: string; retry: () => void } | null>(null);
+  const [enrollment, setEnrollment] = useState<{ secret: string; otpauthUrl: string } | null>(null);
+  const [qrDataUrl, setQrDataUrl] = useState('');
 
   const passwordsMatch = newPassword === confirmPassword;
   const canSetPassword =
@@ -96,6 +107,7 @@ export function UserSecurityPanel({ user }: { user: AdminUser }) {
     onSuccess: (result) => {
       setTempPassword(result.temporaryPassword);
       setResetReason('');
+      setResetOpen(false);
       toast.success(t('users.passwordReset'));
       invalidate();
     },
@@ -105,18 +117,43 @@ export function UserSecurityPanel({ user }: { user: AdminUser }) {
       ),
   });
 
-  const toggleMfa = useMutation({
-    mutationFn: () =>
-      user.mfaEnabled
-        ? disableUserMfa(user.id, t('users.mfaToggleReason'))
-        : enableUserMfa(user.id, t('users.mfaToggleReason')),
-    onSuccess: () => {
-      toast.success(user.mfaEnabled ? t('users.mfaDisabledNow') : t('users.mfaEnabledNow'));
+  useEffect(() => {
+    if (!enrollment) {
+      setQrDataUrl('');
+      return;
+    }
+    let cancelled = false;
+    void QRCode.toDataURL(enrollment.otpauthUrl, { margin: 1, width: 220 }).then((url) => {
+      if (!cancelled) setQrDataUrl(url);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [enrollment]);
+
+  const enableMfa = useMutation({
+    mutationFn: () => enableUserMfa(user.id, t('users.mfaToggleReason')),
+    onSuccess: (result) => {
+      if (result.totp) setEnrollment(result.totp);
+      toast.success(t('users.mfaEnabledNow'));
       invalidate();
     },
     onError: (error) =>
       runOrStepUp(error, () =>
-        setStepUp({ action: `user:update:${user.id}`, retry: () => toggleMfa.mutate() }),
+        setStepUp({ action: `user:update:${user.id}`, retry: () => enableMfa.mutate() }),
+      ),
+  });
+
+  const disableMfa = useMutation({
+    mutationFn: () => disableUserMfa(user.id, t('users.mfaToggleReason')),
+    onSuccess: () => {
+      setEnrollment(null);
+      toast.success(t('users.mfaDisabledNow'));
+      invalidate();
+    },
+    onError: (error) =>
+      runOrStepUp(error, () =>
+        setStepUp({ action: `user:update:${user.id}`, retry: () => disableMfa.mutate() }),
       ),
   });
 
@@ -128,7 +165,7 @@ export function UserSecurityPanel({ user }: { user: AdminUser }) {
         page: activityPage,
         pageSize: ACTIVITY_PAGE_SIZE,
       }),
-    enabled: canAudit,
+    enabled: canAudit && (part === 'all' || part === 'activity'),
   });
 
   const activityColumns: Column<AuditEvent>[] = [
@@ -148,14 +185,18 @@ export function UserSecurityPanel({ user }: { user: AdminUser }) {
     { key: 'reason', header: t('common.reason'), render: (row) => row.reason || '—' },
   ];
 
+  const showMfa = part === 'all' || part === 'mfa';
+  const showPassword = part === 'all' || part === 'security';
+  const showActivity = part === 'all' || part === 'activity';
+
   return (
-    <div className="mt-4 space-y-4">
-      <section className={`${cardClass} space-y-4 p-6`}>
+    <div className={part === 'all' ? 'mt-4 space-y-4' : 'space-y-4'}>
+      {showMfa ? <section className={`${cardClass} space-y-4 p-6`}>
         <div>
           <h2 className="flex items-center gap-2.5 text-sm font-semibold text-[#eef0f6]">
             <span className={sectionAccent} />
             <ShieldCheck className="h-4 w-4 text-[#4ade80]" />
-            {t('users.mfa')}
+            {t('users.mfa')} — {user.username}
           </h2>
           <p className={cn('mt-1.5 text-sm', textSubtle)}>{t('users.mfaHint')}</p>
         </div>
@@ -169,19 +210,31 @@ export function UserSecurityPanel({ user }: { user: AdminUser }) {
             </p>
           </div>
           {canUpdate || isSelf ? (
-            <Button
-              type="button"
-              variant={user.mfaEnabled ? 'outline' : 'default'}
-              disabled={toggleMfa.isPending}
-              onClick={() => toggleMfa.mutate()}
-            >
-              {user.mfaEnabled ? t('users.mfaDisable') : t('users.mfaEnable')}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              {user.mfaEnabled ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={enableMfa.isPending}
+                  onClick={() => enableMfa.mutate()}
+                >
+                  {t('users.mfaRegenerate')}
+                </Button>
+              ) : null}
+              <Button
+                type="button"
+                variant={user.mfaEnabled ? 'outline' : 'default'}
+                disabled={enableMfa.isPending || disableMfa.isPending}
+                onClick={() => (user.mfaEnabled ? disableMfa.mutate() : enableMfa.mutate())}
+              >
+                {user.mfaEnabled ? t('users.mfaDisable') : t('users.mfaEnable')}
+              </Button>
+            </div>
           ) : null}
         </div>
-      </section>
+      </section> : null}
 
-      <section className={`${cardClass} space-y-4 p-6`}>
+      {showPassword ? <section className={`${cardClass} space-y-4 p-6`}>
         <div>
           <h2 className="flex items-center gap-2.5 text-sm font-semibold text-[#eef0f6]">
             <span className={sectionAccent} />
@@ -242,19 +295,8 @@ export function UserSecurityPanel({ user }: { user: AdminUser }) {
           </div>
         ) : null}
         {canUpdate && !isSelf ? (
-          <div className="space-y-3 border-t border-[#2a3040] pt-4">
-            <Label htmlFor="cms-reset-reason">{t('users.resetReason')}</Label>
-            <Input
-              id="cms-reset-reason"
-              value={resetReason}
-              onChange={(event) => setResetReason(event.target.value)}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              disabled={resetReason.trim().length < 10 || resetPassword.isPending}
-              onClick={() => resetPassword.mutate()}
-            >
+          <div className="border-t border-[#2a3040] pt-4">
+            <Button type="button" variant="outline" onClick={() => setResetOpen(true)}>
               {t('users.resetPassword')}
             </Button>
           </div>
@@ -264,9 +306,9 @@ export function UserSecurityPanel({ user }: { user: AdminUser }) {
             {t('users.temporaryPassword')}: <strong>{tempPassword}</strong>
           </p>
         ) : null}
-      </section>
+      </section> : null}
 
-      {canAudit ? (
+      {showActivity && canAudit ? (
         <section className="space-y-3">
           <div className="flex flex-wrap items-end justify-between gap-2">
             <div>
@@ -295,6 +337,68 @@ export function UserSecurityPanel({ user }: { user: AdminUser }) {
         </section>
       ) : null}
 
+      <Dialog
+        open={resetOpen}
+        onClose={() => {
+          if (!resetPassword.isPending) setResetOpen(false);
+        }}
+        title={t('users.resetPassword')}
+        footer={
+          <Button
+            type="button"
+            disabled={resetReason.trim().length < 10 || resetPassword.isPending}
+            onClick={() => resetPassword.mutate()}
+          >
+            {t('users.resetPassword')}
+          </Button>
+        }
+      >
+        <div className="space-y-1.5">
+          <Label htmlFor="cms-reset-reason">{t('users.resetReason')}</Label>
+          <Input
+            id="cms-reset-reason"
+            value={resetReason}
+            onChange={(event) => setResetReason(event.target.value)}
+          />
+        </div>
+      </Dialog>
+      <Dialog
+        open={Boolean(enrollment)}
+        onClose={() => setEnrollment(null)}
+        title={t('users.mfaSetupTitle')}
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-[#b8bfd0]">{t('users.mfaSetupHint')}</p>
+          {qrDataUrl ? (
+            <img
+              src={qrDataUrl}
+              alt={t('users.mfaSetupTitle')}
+              className="mx-auto h-52 w-52 rounded-lg bg-white p-2"
+            />
+          ) : null}
+          <div className="space-y-1.5">
+            <Label>{t('users.mfaSecret')}</Label>
+            <div className="flex items-center gap-2">
+              <code className="min-w-0 flex-1 break-all rounded-lg border border-[#2a3040] bg-[#1a1e28] px-3 py-2 text-sm">
+                {enrollment?.secret}
+              </code>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => {
+                  if (!enrollment) return;
+                  void navigator.clipboard.writeText(enrollment.secret).then(() => {
+                    toast.success(t('users.mfaCopied'));
+                  });
+                }}
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Dialog>
       <StepUpDialog
         open={Boolean(stepUp)}
         action={stepUp?.action ?? ''}

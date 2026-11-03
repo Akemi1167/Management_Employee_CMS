@@ -110,6 +110,16 @@ export interface ImportRowError {
   employeeCode: string | null;
 }
 
+export interface ImportErrorCounts {
+  all: number;
+  error: number;
+  warning: number;
+}
+
+export interface ImportErrorsPage extends Paginated<ImportRowError> {
+  counts: ImportErrorCounts;
+}
+
 export type DataType = 'ATTENDANCE' | 'PENALTY' | 'PAYROLL';
 
 export type WorkflowStatus =

@@ -456,7 +456,9 @@
     "sessionId": "Import session ID",
     "openStaging": "Open staging records",
     "severityError": "Error",
-    "severityWarning": "Warning"
+    "severityWarning": "Warning",
+    "errorCode": "Error code",
+    "filterEmployeeCode": "OL0836"
   },
   "attendance": {
     "title": "Attendance",

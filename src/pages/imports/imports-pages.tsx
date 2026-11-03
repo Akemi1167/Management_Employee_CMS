@@ -214,7 +214,8 @@ export function ImportDetailPage() {
   const canValidate = useAuthStore((s) => s.hasPermission(PERMISSION.IMPORT_VALIDATE));
   const canSubmit = useAuthStore((s) => s.hasPermission(PERMISSION.IMPORT_SUBMIT));
   const [errorPage, setErrorPage] = useState(1);
-  const [severity, setSeverity] = useState('');
+  const [severity, setSeverity] = useState<'ERROR' | 'WARNING' | ''>('ERROR');
+  const [employeeCode, setEmployeeCode] = useState('');
 
   const detail = useQuery({
     queryKey: ['import', id],
@@ -222,12 +223,13 @@ export function ImportDetailPage() {
     enabled: Boolean(id),
   });
   const errors = useQuery({
-    queryKey: ['import-errors', id, errorPage, severity],
+    queryKey: ['import-errors', id, errorPage, severity, employeeCode],
     queryFn: () =>
       fetchImportErrors(id, {
         page: errorPage,
         pageSize: 50,
         severity: severity || undefined,
+        employeeCode: employeeCode.trim() || undefined,
       }),
     enabled: Boolean(id),
   });
@@ -255,7 +257,7 @@ export function ImportDetailPage() {
   const errorColumns: Column<ImportRowError>[] = [
     { key: 'rowNumber', header: t('imports.row') },
     { key: 'columnName', header: t('imports.column') },
-    { key: 'code', header: t('imports.code') },
+    { key: 'code', header: t('imports.errorCode') },
     { key: 'severity', header: t('imports.severity'), render: (row) => <StatusBadge value={row.severity} /> },
     { key: 'message', header: t('complaints.reason') },
     {
@@ -353,18 +355,56 @@ export function ImportDetailPage() {
               </Button>
             ))}
           </div>
-          <div className={`${cardClass} mb-4 flex flex-wrap gap-2 p-4`}>
-            <Select
-              value={severity}
-              onChange={(e) => {
-                setSeverity(e.target.value);
-                setErrorPage(1);
-              }}
-            >
-              <option value="">{t('common.all')}</option>
-              <option value="ERROR">{t('imports.severityError')}</option>
-              <option value="WARNING">{t('imports.severityWarning')}</option>
-            </Select>
+          <div className={`${cardClass} mb-4 p-4`}>
+            <FilterGrid>
+              <FilterField label={t('imports.severity')} className="sm:col-span-2">
+                <div className="flex flex-wrap gap-2">
+                  {(
+                    [
+                      [
+                        'ERROR',
+                        t('imports.severityError'),
+                        errors.data?.counts.error ?? session.totals.errorRows,
+                      ],
+                      [
+                        'WARNING',
+                        t('imports.severityWarning'),
+                        errors.data?.counts.warning ?? session.totals.warningRows,
+                      ],
+                      [
+                        '',
+                        t('common.all'),
+                        errors.data?.counts.all ??
+                          session.totals.errorRows + session.totals.warningRows,
+                      ],
+                    ] as const
+                  ).map(([value, label, count]) => (
+                    <Button
+                      key={value || 'all'}
+                      type="button"
+                      size="sm"
+                      variant={severity === value ? 'default' : 'outline'}
+                      onClick={() => {
+                        setSeverity(value);
+                        setErrorPage(1);
+                      }}
+                    >
+                      {label} ({count})
+                    </Button>
+                  ))}
+                </div>
+              </FilterField>
+              <FilterField label={t('employees.code')}>
+                <Input
+                  value={employeeCode}
+                  placeholder={t('imports.filterEmployeeCode')}
+                  onChange={(event) => {
+                    setEmployeeCode(event.target.value.toUpperCase());
+                    setErrorPage(1);
+                  }}
+                />
+              </FilterField>
+            </FilterGrid>
           </div>
           <DataTable
             title={t('imports.errors')}

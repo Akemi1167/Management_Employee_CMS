@@ -456,7 +456,9 @@
     "sessionId": "导入批次 ID",
     "openStaging": "打开该批次草稿",
     "severityError": "错误",
-    "severityWarning": "警告"
+    "severityWarning": "警告",
+    "errorCode": "错误代码",
+    "filterEmployeeCode": "OL0836"
   },
   "attendance": {
     "title": "考勤",

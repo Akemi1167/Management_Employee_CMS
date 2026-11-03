@@ -1,6 +1,12 @@
 import { apiClient, apiGet, apiPost, newIdempotencyKey } from '@/lib/api-client';
 import { API_ENDPOINTS } from '@/constants/api-endpoints';
-import type { DataType, ImportRowError, ImportSessionDetail, ImportSessionListItem, Listed, Paginated } from '@/types/api';
+import type {
+  DataType,
+  ImportErrorsPage,
+  ImportSessionDetail,
+  ImportSessionListItem,
+  Listed,
+} from '@/types/api';
 
 export function fetchImports(params: Record<string, unknown>) {
   return apiGet<Listed<ImportSessionListItem>>(API_ENDPOINTS.IMPORTS, params);
@@ -11,7 +17,7 @@ export function fetchImport(id: string) {
 }
 
 export function fetchImportErrors(id: string, params: Record<string, unknown>) {
-  return apiGet<Paginated<ImportRowError>>(`${API_ENDPOINTS.IMPORTS}/${id}/errors`, params);
+  return apiGet<ImportErrorsPage>(`${API_ENDPOINTS.IMPORTS}/${id}/errors`, params);
 }
 
 export async function createImport(input: {

@@ -456,7 +456,9 @@
     "sessionId": "ID phiên import",
     "openStaging": "Mở bản chưa công bố của phiên",
     "severityError": "Lỗi",
-    "severityWarning": "Cảnh báo"
+    "severityWarning": "Cảnh báo",
+    "errorCode": "Mã lỗi",
+    "filterEmployeeCode": "OL0836"
   },
   "attendance": {
     "title": "Chấm công",

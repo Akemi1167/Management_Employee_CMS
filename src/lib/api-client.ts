@@ -126,6 +126,11 @@ export async function apiPatch<T>(url: string, body?: unknown, headers?: Record<
   return data;
 }
 
+export async function apiDelete<T>(url: string) {
+  const { data } = await apiClient.delete<T>(url);
+  return data;
+}
+
 export function newIdempotencyKey() {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID();

@@ -190,8 +190,20 @@ export function downloadEmployeeRosterTemplate() {
     {
       name: 'nhan vien',
       rows: [
-        ['Mã nhân viên', 'Họ tên', 'Bộ phận', 'Chức vụ', 'Ngày nhận việc (MM/DD/YY)'],
-        ['NV001', 'Nguyen Van A', 'IT', 'Nhân viên', '01/15/24'],
+        ['Mã nhân viên', 'Họ tên', 'Bộ phận', 'Chức vụ', 'Ngày nhận việc (MM/DD/YY)', 'Nhóm quy trình'],
+        ['NV001', 'Nguyen Van A', 'IT', 'Nhân viên', '01/15/24', 'INTERNAL'],
+      ],
+    },
+  ]);
+}
+
+export function downloadPayItemTemplate() {
+  downloadXlsx('mau-khoan-luong.xlsx', [
+    {
+      name: 'khoan',
+      rows: [
+        ['Mã nhân viên', 'Ngày phát sinh', 'Loại khoản', 'Số giờ', 'Số tiền', 'Lý do'],
+        ['NV001', '2026-11-05', 'OVERTIME', '2', '100000', 'Ca tối'],
       ],
     },
   ]);

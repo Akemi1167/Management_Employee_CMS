@@ -4,12 +4,14 @@ import { AuthGuard, CmsPageGuard, GuestGuard } from '@/components/auth/auth-guar
 import { LoginPage } from '@/pages/auth/login-page';
 import { ChangePasswordPage } from '@/pages/auth/change-password-page';
 import { DashboardPage } from '@/pages/dashboard/dashboard-page';
+import { EmployeeCreatePage } from '@/pages/employees/employee-create-page';
 import { EmployeesListPage } from '@/pages/employees/employees-list-page';
 import { EmployeeRegionsPage } from '@/pages/employees/employee-regions-page';
 import { EmployeeImportPage } from '@/pages/employees/employee-import-page';
 import { EmployeeWalletImportPage } from '@/pages/employees/employee-wallet-import-page';
 import { EmployeeDetailPage } from '@/pages/employees/employee-detail-page';
 import { EmployeeSyncDetailPage, EmployeeSyncListPage } from '@/pages/employees/employee-sync-page';
+import { LarkDataSourcesPage } from '@/pages/lark/lark-data-sources-page';
 import { ImportCreatePage, ImportDetailPage, ImportsListPage } from '@/pages/imports/imports-pages';
 import { AttendanceListPage, PayrollListPage, PenaltiesListPage } from '@/pages/hr/hr-records-pages';
 import { ApprovalsListPage, PublishingPage } from '@/pages/workflow/workflow-pages';
@@ -19,6 +21,8 @@ import { WalletRequestDetailPage, WalletRequestsPage } from '@/pages/wallet/wall
 import { VaultDecryptDetailPage, VaultPage, VaultRecoveryDetailPage } from '@/pages/vault/vault-pages';
 import { AuditListPage } from '@/pages/audit/audit-list-page';
 import { PeriodOverviewPage } from '@/pages/reports/period-overview-page';
+import { PayItemTypesPage } from '@/pages/pay-items/pay-item-types-page';
+import { PayItemsPage } from '@/pages/pay-items/pay-items-page';
 
 export function AppRoutes() {
   return (
@@ -35,18 +39,22 @@ export function AppRoutes() {
             <Route element={<CmsPageGuard />}>
               <Route index element={<DashboardPage />} />
               <Route path="employees" element={<EmployeesListPage />} />
+              <Route path="employees/create" element={<EmployeeCreatePage />} />
               <Route path="regions" element={<EmployeeRegionsPage />} />
               <Route path="employees/import" element={<EmployeeImportPage />} />
               <Route path="employees/wallets/import" element={<EmployeeWalletImportPage />} />
               <Route path="employees/:id" element={<EmployeeDetailPage />} />
               <Route path="employee-sync" element={<EmployeeSyncListPage />} />
               <Route path="employee-sync/:id" element={<EmployeeSyncDetailPage />} />
+              <Route path="lark-sources" element={<LarkDataSourcesPage />} />
               <Route path="imports" element={<ImportsListPage />} />
               <Route path="imports/create" element={<ImportCreatePage />} />
               <Route path="imports/:id" element={<ImportDetailPage />} />
               <Route path="attendance" element={<AttendanceListPage />} />
               <Route path="penalties" element={<PenaltiesListPage />} />
               <Route path="payroll" element={<PayrollListPage />} />
+              <Route path="pay-items/types" element={<PayItemTypesPage />} />
+              <Route path="pay-items" element={<PayItemsPage />} />
               <Route path="period-overview" element={<PeriodOverviewPage />} />
               <Route path="approvals" element={<ApprovalsListPage />} />
               <Route path="publishing" element={<PublishingPage />} />

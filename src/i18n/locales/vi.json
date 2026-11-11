@@ -86,6 +86,7 @@
     "employees": "Hồ sơ nhân viên",
     "regions": "Phân vùng",
     "employeeSync": "Đồng bộ LARK",
+    "larkSources": "Nguồn LARK Base/Sheet",
     "imports": "Nhập file",
     "importCreate": "Tải file Excel",
     "attendance": "Chấm công",
@@ -101,7 +102,9 @@
     "users": "Tài khoản CMS",
     "audit": "Nhật ký audit",
     "password": "Đổi mật khẩu",
-    "needPermission": "Tài khoản hiện tại chưa có quyền mở mục này"
+    "needPermission": "Tài khoản hiện tại chưa có quyền mở mục này",
+    "payItems": "Khoản tăng ca/phạt",
+    "payItemTypes": "Cấu hình loại khoản"
   },
   "dashboard": {
     "title": "Bảng điều khiển",
@@ -203,7 +206,7 @@
     "system_admin": "Quản trị hệ thống"
   },
   "rolesHint": {
-    "data_entry": "Nhập Excel, sửa bản nháp chấm công/phạt/lương, gán ví lần đầu và xác nhận liên hệ.",
+    "data_entry": "Nhập Excel, sửa bản nháp, nhập khoản CMS, gán ví lần đầu và xác nhận liên hệ. Không tự duyệt khoản hoặc lương.",
     "approver": "Xem dữ liệu kỳ rồi duyệt. Không tự nhập file (tách với nhập liệu).",
     "publisher": "Công bố hoặc khóa kỳ sau khi đã duyệt. Không nhập file.",
     "complaint_operator": "Tiếp nhận và xử lý khiếu nại; xác nhận liên hệ đổi ví, không duyệt ví.",
@@ -221,7 +224,9 @@
     "vault": "Vault",
     "accounts": "Tài khoản CMS",
     "audit": "Kiểm toán",
-    "notifications": "Thông báo"
+    "notifications": "Thông báo",
+    "lark": "LARK",
+    "payitem": "Khoản lương"
   },
   "permission": {
     "employee_read": "Xem hồ sơ nhân viên",
@@ -260,7 +265,12 @@
     "vault_decrypt_request": "Yêu cầu giải mã vault",
     "vault_decrypt_approve": "Duyệt giải mã vault",
     "notification_read": "Xem thông báo",
-    "notification_dispatch": "Gửi thông báo"
+    "notification_dispatch": "Gửi thông báo",
+    "lark_datasource_read": "Xem nguồn LARK Base/Sheet",
+    "lark_datasource_write": "Cấu hình nguồn LARK Base/Sheet",
+    "payitem_read": "Xem khoản tăng ca/phạt",
+    "payitem_write": "Nhập/sửa khoản CMS",
+    "payitem_approve": "Duyệt khoản tăng ca/phạt"
   },
   "syncChange": {
     "CREATE": "Thêm mới",
@@ -276,7 +286,7 @@
     "description": "Danh sách nhân viên đồng bộ từ LARK hoặc nhập roster Excel. OA chỉ gán ví lần đầu trên hồ sơ; đổi ví sau đó qua yêu cầu hỗ trợ, xác nhận liên hệ, nhân viên đồng ý trên cổng, rồi người duyệt khác.",
     "importTitle": "Nhập roster",
     "importDescription": "File .xlsx hoặc .csv: mã nhân viên và họ tên bắt buộc. Có thể tạo tài khoản trước ngày nhận việc — người chưa vào làm không tính vào kỳ hiện tại. Không thay thế đồng bộ LARK.",
-    "importHint": "Cột: Mã nhân viên, Họ tên, Bộ phận, Chức vụ, Ngày nhận việc (MM/DD/YY). Ngày nhận việc trong tương lai vẫn cấp tài khoản cổng; thiếu ngày thì hệ thống gán ngày 1 tháng sau.",
+    "importHint": "Cột: Mã nhân viên, Họ tên, Bộ phận, Chức vụ, Ngày nhận việc (MM/DD/YY), Nhóm quy trình (LARK/INTERNAL, tùy chọn).",
     "importSubmit": "Tải roster",
     "walletImportTitle": "Nhập mã ví hàng loạt",
     "walletImportDescription": "File OA .xlsx hoặc .csv: bắt buộc mã nhân viên và địa chỉ ví. Ảnh QR trong Excel (DISPIMG) được lấy kèm nếu có. Chỉ gán lần đầu; đã có ví thì bỏ qua trừ khi tài khoản là system_admin. Thiếu ảnh QR thì nhập lại file để gắn ảnh, không đổi mã ví.",
@@ -394,7 +404,15 @@
     "portalPasswordReset": "Đã đặt lại mật khẩu. Nhân viên phải đổi mật khẩu khi đăng nhập lại.",
     "mustChangePassword": "Bắt buộc đổi MK",
     "lastLoginAt": "Đăng nhập gần nhất",
-    "passwordChangedAt": "Đổi mật khẩu lúc"
+    "passwordChangedAt": "Đổi mật khẩu lúc",
+    "createTitle": "Tạo hồ sơ tay",
+    "createDescription": "Tạo hồ sơ theo mã nhân viên. Nhóm INTERNAL nhập khoản trên CMS; nhóm LARK đồng bộ Base + Approval.",
+    "createSubmit": "Tạo hồ sơ",
+    "createdProfile": "Đã tạo hồ sơ",
+    "payrollProcess": "Nhóm quy trình",
+    "unionId": "LARK union_id",
+    "larkUserId": "LARK user_id",
+    "larkOptional": "Tùy chọn. Để trống nếu nhân viên không dùng LARK."
   },
   "passwordChange": {
     "REQUIRED": "Phải đổi khi đăng nhập",
@@ -418,6 +436,69 @@
     "needsConfirmation": "Cần xác nhận",
     "unchanged": "Không đổi",
     "skippedWithoutUnionId": "Thiếu union_id"
+  },
+  "larkSources": {
+    "title": "Nguồn LARK Base và Sheet",
+    "description": "Cấu hình bot LARK đọc bảng Base (Bitable) hoặc bảng tính Sheet. Dán URL khi đang mở đúng tài liệu — không dùng link wiki. App cần thêm scope bitable:app:readonly và sheets:spreadsheet.readonly.",
+    "create": "Thêm nguồn",
+    "edit": "Sửa nguồn",
+    "name": "Tên nguồn",
+    "kind": "Loại",
+    "purpose": "Mục đích",
+    "sourceUrl": "URL LARK",
+    "sourceUrlPlaceholder": "https://…larksuite.com/base/… hoặc /sheets/…",
+    "appToken": "App token Base",
+    "spreadsheetToken": "Spreadsheet token",
+    "table": "Bảng Base",
+    "tableId": "Table ID",
+    "sheet": "Sheet",
+    "range": "Vùng đọc (tuỳ chọn)",
+    "chooseTable": "Chọn bảng",
+    "chooseSheet": "Chọn sheet",
+    "inspect": "Đọc cấu trúc",
+    "inspected": "Đã đọc cấu trúc từ LARK",
+    "test": "Thử kết nối",
+    "preview": "Xem dữ liệu mẫu",
+    "previewTitle": "Dữ liệu mẫu {{title}}",
+    "previewTruncated": "Chỉ hiện tối đa 20 dòng đầu.",
+    "saved": "Đã lưu nguồn LARK",
+    "deleted": "Đã xóa nguồn LARK",
+    "confirmDelete": "Xóa nguồn LARK?",
+    "confirmDeleteDescription": "Xóa cấu hình «{{name}}». Không xóa dữ liệu trên LARK hay hồ sơ nhân viên.",
+    "enabled": "Cho bot đọc nguồn này",
+    "employeeCodeField": "Cột mã nhân viên",
+    "employeeCodePlaceholder": "Tên cột trên Base/Sheet, ví dụ Mã NV",
+    "lastTest": "Lần thử gần nhất",
+    "testOk": "Đọc được",
+    "testFail": "Lỗi",
+    "botTitle": "Bot LARK của hệ thống",
+    "botOn": "Đang bật. Gọi {{url}} bằng app id/secret trong cấu hình máy chủ.",
+    "botOff": "Đang tắt. Bật LARK_SYNC_ENABLED và điền LARK_APP_ID / LARK_APP_SECRET trên API.",
+    "botMissing": "Thiếu app id hoặc secret — không gọi được LARK.",
+    "kinds": {
+      "BASE": "Lark Base",
+      "SHEET": "Lark Sheet"
+    },
+    "purposes": {
+      "ATTENDANCE": "Chấm công",
+      "PAYROLL": "Bảng lương",
+      "PENALTY": "Phạt",
+      "EMPLOYEE": "Nhân viên",
+      "GENERIC": "Khác"
+    },
+    "status": {
+      "ACTIVE": "Đang dùng",
+      "DISABLED": "Tắt"
+    },
+    "fieldMap": {
+      "occurredOn": "Cột ngày phát sinh",
+      "hours": "Cột số giờ",
+      "amount": "Cột số tiền",
+      "type": "Cột loại khoản",
+      "reason": "Cột lý do",
+      "approvalInstanceId": "Cột mã Approval",
+      "approvalStatus": "Cột trạng thái duyệt"
+    }
   },
   "imports": {
     "title": "Nhập file theo mẫu",
@@ -806,10 +887,93 @@
     "FAILURE": "Thất bại",
     "DENIED": "Từ chối",
     "resourceId": "ID đối tượng",
-    "actorUserId": "ID người thao tác"
+    "actorUserId": "ID người thao tác",
+    "ip": "IP",
+    "payload": "JSON"
   },
   "account": {
     "title": "Tài khoản của tôi",
     "description": "Đổi mật khẩu. Nhập mật khẩu mới hai lần. Mọi phiên cũ sẽ bị thu hồi."
+  },
+  "payrollProcess": {
+    "LARK": "Dùng LARK",
+    "INTERNAL": "Nội bộ (CMS)"
+  },
+  "payItemStatus": {
+    "DRAFT": "Nháp",
+    "PENDING_APPROVAL": "Chờ duyệt",
+    "APPROVED": "Đã duyệt",
+    "REJECTED": "Từ chối",
+    "INCLUDED": "Đã vào kỳ lương"
+  },
+  "payItemSource": {
+    "MANUAL": "Nhập CMS",
+    "FILE_IMPORT": "Excel",
+    "LARK_BASE": "LARK Base"
+  },
+  "payItems": {
+    "title": "Khoản tăng ca / phạt",
+    "description": "Hai kênh thu thập, một kỳ lương. Khoản CMS do nhập liệu tạo, tổ trưởng duyệt (khác người tạo). LARK chỉ lấy khoản Approval đã duyệt. Trùng hai nguồn chỉ cảnh báo, không cộng kép.",
+    "create": "Tạo khoản",
+    "created": "Đã tạo khoản nháp",
+    "import": "Nhập Excel",
+    "importSubmit": "Tải khoản",
+    "importHint": "Cột: Mã nhân viên, Ngày phát sinh, Loại khoản, Số giờ, Số tiền, Lý do.",
+    "imported": "Đã nhập {{count}} khoản",
+    "larkSync": "Đồng bộ LARK Base",
+    "synced": "Đã đồng bộ: tạo {{created}}, cập nhật {{updated}}, bỏ qua {{skipped}}",
+    "submit": "Gửi duyệt",
+    "submitted": "Đã gửi duyệt",
+    "approve": "Duyệt",
+    "approved": "Đã duyệt khoản",
+    "reject": "Từ chối",
+    "rejected": "Đã từ chối khoản",
+    "code": "Mã khoản",
+    "occurredOn": "Ngày phát sinh",
+    "type": "Loại",
+    "hours": "Số giờ",
+    "amount": "Số tiền",
+    "source": "Nguồn",
+    "duplicate": "Trùng nguồn khác",
+    "duplicates": "Khoản trùng",
+    "missing": "Thiếu khoản trong kỳ",
+    "sodHint": "Người tạo khoản không được tự duyệt."
+  },
+  "payItemKind": {
+    "EARNING": "Cộng",
+    "DEDUCTION": "Trừ"
+  },
+  "payItemUnit": {
+    "HOURS": "Giờ",
+    "AMOUNT": "Số tiền",
+    "BOTH": "Giờ hoặc số tiền"
+  },
+  "payrollComponent": {
+    "BASE_SALARY": "Lương cơ bản",
+    "ALLOWANCE": "Trợ cấp",
+    "BONUS": "Thưởng / lì xì / hoa hồng",
+    "OVERTIME": "Tăng ca",
+    "PENALTY": "Phạt",
+    "TAX": "Thuế",
+    "INSURANCE": "Bảo hiểm",
+    "ADVANCE": "Ứng tiền",
+    "ADJUSTMENT": "Điều chỉnh",
+    "OTHER": "Khoản khác (không đè file lương)"
+  },
+  "payItemTypes": {
+    "title": "Cấu hình loại khoản",
+    "description": "Tạo loại khoản dòng rồi map vào một nhóm trên bảng lương. Thâm niên, lì xì, hoa hồng trên file lương kỳ không cần cấu hình ở đây.",
+    "hint": "Khoản lẻ (thưởng đặc biệt, điều chỉnh) hãy map «Khoản khác» hoặc «Điều chỉnh». Map Tăng ca/Phạt/Thưởng/Trợ cấp sẽ thay cả nhóm đó trên file Excel khi khoản đã duyệt.",
+    "create": "Thêm loại",
+    "edit": "Sửa loại khoản",
+    "saved": "Đã lưu loại khoản",
+    "code": "Mã loại",
+    "label": "Nhãn",
+    "kind": "Cộng / trừ",
+    "component": "Nhóm bảng lương",
+    "unit": "Đơn vị",
+    "enabled": "Cho phép nhập khoản mới",
+    "replaceWarning": "Nhóm này đã có cột trên file lương. Khoản đã duyệt sẽ thay toàn bộ nhóm, không cộng thêm một dòng.",
+    "otherHint": "Map OTHER/ADJUSTMENT thì khoản được cộng vào components mà không xóa cột Excel khác nhóm."
   }
 }

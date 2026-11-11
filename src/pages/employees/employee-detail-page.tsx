@@ -196,6 +196,13 @@ export function EmployeeDetailPage() {
                     </Link>
                   </Button>
                 ) : null}
+                {has(PERMISSION.PAYITEM_READ) ? (
+                  <Button variant="outline" asChild>
+                    <Link to={`/pay-items?employeeCode=${encodeURIComponent(data.employeeCode)}${period ? `&period=${period}` : ''}`}>
+                      {t('nav.payItems')}
+                    </Link>
+                  </Button>
+                ) : null}
               </div>
             </FilterGrid>
             <p className="mt-3 text-xs text-[#9aa3b5]">{t('source.hint')}</p>
@@ -249,6 +256,7 @@ function EmployeeProfileCard({ employee }: { employee: Employee }) {
   const [position, setPosition] = useState(employee.position ?? '');
   const [hiredAt, setHiredAt] = useState(toDateInput(employee.hiredAt));
   const [employmentStatus, setEmploymentStatus] = useState(employee.employmentStatus);
+  const [payrollProcess, setPayrollProcess] = useState<string>(employee.payrollProcess ?? 'INTERNAL');
   const [terminatedAt, setTerminatedAt] = useState(toDateInput(employee.terminatedAt));
   const [reason, setReason] = useState('');
   const [deleteReason, setDeleteReason] = useState('');
@@ -264,6 +272,7 @@ function EmployeeProfileCard({ employee }: { employee: Employee }) {
     setPosition(employee.position ?? '');
     setHiredAt(toDateInput(employee.hiredAt));
     setEmploymentStatus(employee.employmentStatus);
+    setPayrollProcess(employee.payrollProcess ?? 'INTERNAL');
     setTerminatedAt(toDateInput(employee.terminatedAt));
   }, [employee]);
 
@@ -306,6 +315,7 @@ function EmployeeProfileCard({ employee }: { employee: Employee }) {
       position: position.trim() ? position.trim() : null,
       hiredAt: hiredIso,
       employmentStatus,
+      payrollProcess,
       reason: reason.trim(),
     };
     if (employmentStatus === 'TERMINATED') {
@@ -416,6 +426,10 @@ function EmployeeProfileCard({ employee }: { employee: Employee }) {
           <StatusBadge value={employee.employmentStatus} ns="employment" />
         </div>
         <div>
+          <p className="text-[11px] uppercase text-[#9aa3b5]">{t('employees.payrollProcess')}</p>
+          <StatusBadge value={employee.payrollProcess ?? 'INTERNAL'} ns="payrollProcess" />
+        </div>
+        <div>
           <p className="text-[11px] uppercase text-[#9aa3b5]">LARK</p>
           <StatusBadge value={employee.larkSyncStatus} ns="larkStatus" />
         </div>
@@ -464,6 +478,13 @@ function EmployeeProfileCard({ employee }: { employee: Employee }) {
                 <option value="ON_LEAVE">{t('employment.ON_LEAVE')}</option>
                 <option value="SUSPENDED">{t('employment.SUSPENDED')}</option>
                 <option value="TERMINATED">{t('employment.TERMINATED')}</option>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('employees.payrollProcess')}</Label>
+              <Select value={payrollProcess} onChange={(e) => setPayrollProcess(e.target.value)}>
+                <option value="INTERNAL">{t('payrollProcess.INTERNAL')}</option>
+                <option value="LARK">{t('payrollProcess.LARK')}</option>
               </Select>
             </div>
             {employmentStatus === 'TERMINATED' ? (

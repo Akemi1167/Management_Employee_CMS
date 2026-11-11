@@ -150,6 +150,7 @@ export interface Employee {
   regionCode?: string | null;
   position: string | null;
   employmentStatus: string;
+  payrollProcess?: 'LARK' | 'INTERNAL';
   hiredAt: string;
   terminatedAt: string | null;
   larkSyncStatus: string | null;
@@ -568,19 +569,178 @@ export interface PeriodOverview {
   items: PeriodOverviewEmployee[];
 }
 
+export type LarkDataSourceKind = 'BASE' | 'SHEET';
+export type LarkDataSourcePurpose = 'ATTENDANCE' | 'PAYROLL' | 'PENALTY' | 'EMPLOYEE' | 'GENERIC';
+
+export interface LarkBotStatus {
+  enabled: boolean;
+  configured: boolean;
+  baseUrl: string;
+}
+
+export interface LarkDataSource {
+  id: string;
+  code: string;
+  name: string;
+  kind: LarkDataSourceKind;
+  purpose: LarkDataSourcePurpose;
+  enabled: boolean;
+  sourceUrl: string | null;
+  appToken: string | null;
+  tableId: string | null;
+  viewId: string | null;
+  spreadsheetToken: string | null;
+  sheetId: string | null;
+  range: string | null;
+  fieldMap: Record<string, string> | null;
+  lastTestedAt: string | null;
+  lastTestOk: boolean;
+  lastTestMessage: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+export interface LarkDataSourceList {
+  bot: LarkBotStatus;
+  items: LarkDataSource[];
+}
+
+export interface LarkInspectResult {
+  kind: LarkDataSourceKind;
+  appToken: string | null;
+  spreadsheetToken: string | null;
+  tables: Array<{ id: string; name: string }>;
+  sheets: Array<{ id: string; title: string; index: number }>;
+  fields: Array<{ id: string; name: string; type: string }>;
+}
+
+export interface LarkPreviewResult {
+  kind: LarkDataSourceKind;
+  columns: string[];
+  rows: Array<Record<string, string>>;
+  truncated: boolean;
+  title: string | null;
+}
+
+export type PayrollProcess = 'LARK' | 'INTERNAL';
+export type PayItemSource = 'MANUAL' | 'FILE_IMPORT' | 'LARK_BASE';
+export type PayItemStatus = 'DRAFT' | 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED' | 'INCLUDED';
+
+export interface PayItem {
+  id: string;
+  code: string;
+  employeeId: string;
+  employeeCode: string;
+  occurredOn: string;
+  period: string;
+  payItemTypeCode: string;
+  hours: string | null;
+  amount: string | null;
+  currency: string;
+  reason: string | null;
+  source: PayItemSource;
+  status: PayItemStatus;
+  duplicateOfId: string | null;
+  larkBaseRecordId: string | null;
+  larkApprovalInstanceId: string | null;
+  createdBy: string;
+  decidedBy: string | null;
+  decidedAt: string | null;
+}
+
+export type PayrollComponentKind = 'EARNING' | 'DEDUCTION';
+export type PayrollComponentCode =
+  | 'BASE_SALARY'
+  | 'ALLOWANCE'
+  | 'BONUS'
+  | 'OVERTIME'
+  | 'PENALTY'
+  | 'TAX'
+  | 'INSURANCE'
+  | 'ADVANCE'
+  | 'ADJUSTMENT'
+  | 'OTHER';
+export type PayItemUnit = 'HOURS' | 'AMOUNT' | 'BOTH';
+
+export interface PayItemType {
+  id: string;
+  code: string;
+  kind: PayrollComponentKind;
+  label: string;
+  enabled: boolean;
+  mapsToPayrollComponent: PayrollComponentCode;
+  unit: PayItemUnit;
+}
+
+export interface PayItemReconcile {
+  period: string;
+  bySource: Record<string, { count: number; amount: string }>;
+  employees: Array<{
+    employeeId: string;
+    employeeCode: string;
+    payrollProcess: PayrollProcess;
+    overtimeHours: string | null;
+    overtimeAmount: string | null;
+    penaltyAmount: string | null;
+    duplicateCount: number;
+    sources: PayItemSource[];
+    components: Array<{ code: string; kind: string; label: string; amount: string | null }>;
+  }>;
+  duplicates: PayItem[];
+  missingItems: {
+    count: number;
+    sample: Array<{ employeeId: string; employeeCode: string; payrollProcess: PayrollProcess }>;
+  };
+}
+
+export interface PayItemImportResult {
+  sheetName: string;
+  created: number;
+  errors: Array<{ rowNumber: number; message: string }>;
+}
+
+export interface LarkPayItemSyncResult {
+  created: number;
+  updated: number;
+  unchanged: number;
+  skipped: number;
+  errors: string[];
+}
+
+export interface LarkDataSourceUpsert {
+  code?: string;
+  name: string;
+  kind: LarkDataSourceKind;
+  purpose?: LarkDataSourcePurpose;
+  enabled?: boolean;
+  sourceUrl?: string;
+  appToken?: string;
+  tableId?: string;
+  viewId?: string;
+  spreadsheetToken?: string;
+  sheetId?: string;
+  range?: string;
+  fieldMap?: Record<string, string>;
+}
+
 export interface AuditEvent {
   eventId: string;
   sequence: number;
   occurredAt: string;
   actorUserId: string | null;
   actorRole: string | null;
+  actorLabel: string | null;
+  actor: string | null;
   action: string;
   resourceType: string;
   resourceId: string | null;
   employeeId: string | null;
+  employeeCode: string | null;
+  employeeName: string | null;
   reason: string | null;
   result: string;
+  ip: string | null;
   requestId: string | null;
-  previousEventHash: string | null;
-  eventHash: string | null;
+  detail: Record<string, unknown> | null;
+  payload: Record<string, unknown>;
 }

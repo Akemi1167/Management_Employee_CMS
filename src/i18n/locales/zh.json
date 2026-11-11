@@ -101,7 +101,10 @@
     "users": "CMS 账号",
     "audit": "审计日志",
     "password": "修改密码",
-    "needPermission": "当前账号没有权限打开此项"
+    "needPermission": "当前账号没有权限打开此项",
+    "payItems": "加班/罚款明细",
+    "larkSources": "LARK Base/表格来源",
+    "payItemTypes": "明细类型配置"
   },
   "dashboard": {
     "title": "控制台",
@@ -203,7 +206,7 @@
     "system_admin": "系统管理员"
   },
   "rolesHint": {
-    "data_entry": "上传 Excel、修改考勤/罚款/工资草稿、首次绑定钱包并核实联系方式。",
+    "data_entry": "上传 Excel、编辑草稿、在 CMS 录入明细、首次绑定钱包并核实联系。不能自审明细或工资。",
     "approver": "查看周期数据并审批。不能自行上传文件（职责分离）。",
     "publisher": "审批后发布或锁定周期。不能上传文件。",
     "complaint_operator": "受理并处理投诉；核实钱包联系方式，不能审批钱包。",
@@ -221,7 +224,9 @@
     "vault": "保险库",
     "accounts": "CMS 账号",
     "audit": "审计",
-    "notifications": "通知"
+    "notifications": "通知",
+    "payitem": "工资明细",
+    "lark": "LARK"
   },
   "permission": {
     "employee_read": "查看员工档案",
@@ -260,7 +265,12 @@
     "vault_decrypt_request": "申请保险库解密",
     "vault_decrypt_approve": "审批保险库解密",
     "notification_read": "查看通知",
-    "notification_dispatch": "发送通知"
+    "notification_dispatch": "发送通知",
+    "payitem_read": "查看加班/罚款明细",
+    "payitem_write": "录入/修改 CMS 明细",
+    "payitem_approve": "审批加班/罚款明细",
+    "lark_datasource_read": "查看 LARK Base/表格来源",
+    "lark_datasource_write": "配置 LARK Base/表格来源"
   },
   "syncChange": {
     "CREATE": "新建",
@@ -276,7 +286,7 @@
     "description": "名单来自 LARK 同步或 Excel 花名册。OA 仅在档案绑定首次钱包；之后变更需员工申请、人事核实联系、门户同意，再由另一审批人或管理员生效。",
     "importTitle": "导入花名册",
     "importDescription": "上传 .xlsx 或 .csv，工号与姓名必填。可在入职日期前先开门户账号——尚未到岗者不计入当前周期。不能替代 LARK 同步。",
-    "importHint": "列：工号、姓名、部门、职位、入职日期 (MM/DD/YY)。未来入职日期仍会开通门户；缺日期则系统使用下月 1 日。",
+    "importHint": "列：工号、姓名、部门、岗位、入职日期 (MM/DD/YY)、流程分组（LARK/INTERNAL，可选）。",
     "importSubmit": "上传花名册",
     "walletImportTitle": "批量导入钱包地址",
     "walletImportDescription": "OA 的 .xlsx 或 .csv：必填员工编号与钱包地址。Excel 中的二维码（DISPIMG）若有会一并导入。仅首次绑定；已有钱包则跳过（system_admin 除外）。缺图时可再导入同一文件以补上二维码，不改地址。",
@@ -394,7 +404,15 @@
     "portalPasswordReset": "已重置密码。员工下次登录必须修改密码。",
     "mustChangePassword": "强制改密",
     "lastLoginAt": "最近登录",
-    "passwordChangedAt": "改密时间"
+    "passwordChangedAt": "改密时间",
+    "createTitle": "手工建档",
+    "createDescription": "按工号建档。INTERNAL 在 CMS 录入明细；LARK 从 Base + Approval 同步。",
+    "createSubmit": "创建档案",
+    "createdProfile": "已创建档案",
+    "payrollProcess": "流程分组",
+    "unionId": "LARK union_id",
+    "larkUserId": "LARK user_id",
+    "larkOptional": "可选。不使用 LARK 的员工请留空。"
   },
   "passwordChange": {
     "REQUIRED": "登录后必须修改",
@@ -806,10 +824,104 @@
     "FAILURE": "失败",
     "DENIED": "拒绝",
     "resourceId": "对象 ID",
-    "actorUserId": "操作人 ID"
+    "actorUserId": "操作人 ID",
+    "ip": "IP",
+    "payload": "JSON"
   },
   "account": {
     "title": "我的账号",
     "description": "修改密码。新密码需输入两次。其他会话将被撤销。"
+  },
+  "payrollProcess": {
+    "LARK": "使用 LARK",
+    "INTERNAL": "内部（CMS）"
+  },
+  "payItemStatus": {
+    "DRAFT": "草稿",
+    "PENDING_APPROVAL": "待审批",
+    "APPROVED": "已通过",
+    "REJECTED": "已拒绝",
+    "INCLUDED": "已计入工资期"
+  },
+  "payItemSource": {
+    "MANUAL": "CMS 录入",
+    "FILE_IMPORT": "Excel",
+    "LARK_BASE": "LARK Base"
+  },
+  "payItems": {
+    "title": "加班/罚款明细",
+    "description": "两个采集渠道、同一工资期。CMS 明细由录入人创建、另一人审批。LARK 仅同步已通过的 Approval。双源重复只告警、不重复加总。",
+    "create": "新建明细",
+    "created": "已创建草稿",
+    "import": "导入 Excel",
+    "importSubmit": "上传明细",
+    "importHint": "列：工号、发生日期、类型、工时、金额、原因。",
+    "imported": "已导入 {{count}} 条",
+    "larkSync": "同步 LARK Base",
+    "synced": "已同步：新建 {{created}}，更新 {{updated}}，跳过 {{skipped}}",
+    "submit": "提交审批",
+    "submitted": "已提交审批",
+    "approve": "通过",
+    "approved": "已通过明细",
+    "reject": "拒绝",
+    "rejected": "已拒绝明细",
+    "code": "明细编号",
+    "occurredOn": "发生日期",
+    "type": "类型",
+    "hours": "工时",
+    "amount": "金额",
+    "source": "来源",
+    "duplicate": "跨源重复",
+    "duplicates": "重复明细",
+    "missing": "本期内缺少明细",
+    "sodHint": "创建人不得自行审批。"
+  },
+  "larkSources": {
+    "fieldMap": {
+      "occurredOn": "发生日期列",
+      "hours": "工时列",
+      "amount": "金额列",
+      "type": "类型列",
+      "reason": "原因列",
+      "approvalInstanceId": "Approval 实例列",
+      "approvalStatus": "审批状态列"
+    }
+  },
+  "payItemKind": {
+    "EARNING": "加项",
+    "DEDUCTION": "减项"
+  },
+  "payItemUnit": {
+    "HOURS": "工时",
+    "AMOUNT": "金额",
+    "BOTH": "工时或金额"
+  },
+  "payrollComponent": {
+    "BASE_SALARY": "基本工资",
+    "ALLOWANCE": "津贴",
+    "BONUS": "奖金/红包/提成",
+    "OVERTIME": "加班",
+    "PENALTY": "罚款",
+    "TAX": "税",
+    "INSURANCE": "保险",
+    "ADVANCE": "预支",
+    "ADJUSTMENT": "调整",
+    "OTHER": "其他（不覆盖工资表分组）"
+  },
+  "payItemTypes": {
+    "title": "明细类型配置",
+    "description": "配置按行明细并映射到工资构成。工龄、红包、提成仍从当期工资表导入，无需在此配置。",
+    "hint": "零星项目请映射到「其他」或「调整」。映射加班/罚款/奖金/津贴后，已审批明细会整组覆盖 Excel 对应列。",
+    "create": "新增类型",
+    "edit": "编辑类型",
+    "saved": "已保存明细类型",
+    "code": "类型代码",
+    "label": "名称",
+    "kind": "加项 / 减项",
+    "component": "工资分组",
+    "unit": "单位",
+    "enabled": "允许录入该类型",
+    "replaceWarning": "该分组在工资表中已有列。已审批明细会整组覆盖，而不是追加一行。",
+    "otherHint": "映射 OTHER/ADJUSTMENT 会写入 components，不会清空其他 Excel 分组。"
   }
 }

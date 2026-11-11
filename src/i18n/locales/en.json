@@ -86,6 +86,7 @@
     "employees": "Employees",
     "regions": "Regions",
     "employeeSync": "LARK sync",
+    "larkSources": "LARK Base/Sheet sources",
     "imports": "File import",
     "importCreate": "Upload Excel",
     "attendance": "Attendance",
@@ -101,7 +102,9 @@
     "users": "CMS users",
     "audit": "Audit log",
     "password": "Change password",
-    "needPermission": "Your account cannot open this item"
+    "needPermission": "Your account cannot open this item",
+    "payItems": "Overtime / penalties",
+    "payItemTypes": "Pay item types"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -203,7 +206,7 @@
     "system_admin": "System admin"
   },
   "rolesHint": {
-    "data_entry": "Upload Excel, edit staging attendance/penalty/payroll, first-time wallet assign, and contact verify.",
+    "data_entry": "Upload Excel, edit drafts, enter CMS pay items, assign a first wallet, and verify contact. Cannot self-approve items or payroll.",
     "approver": "Review period data and approve. Cannot upload files (separation of duties).",
     "publisher": "Publish or lock a period after approval. Cannot upload files.",
     "complaint_operator": "Take in and handle complaints; verify wallet contact, cannot approve wallets.",
@@ -221,7 +224,9 @@
     "vault": "Vault",
     "accounts": "CMS accounts",
     "audit": "Audit",
-    "notifications": "Notifications"
+    "notifications": "Notifications",
+    "lark": "LARK",
+    "payitem": "Pay items"
   },
   "permission": {
     "employee_read": "View employee profiles",
@@ -260,7 +265,12 @@
     "vault_decrypt_request": "Request vault decrypt",
     "vault_decrypt_approve": "Approve vault decrypt",
     "notification_read": "View notifications",
-    "notification_dispatch": "Send notifications"
+    "notification_dispatch": "Send notifications",
+    "lark_datasource_read": "View LARK Base/Sheet sources",
+    "lark_datasource_write": "Configure LARK Base/Sheet sources",
+    "payitem_read": "View pay items",
+    "payitem_write": "Create/edit CMS pay items",
+    "payitem_approve": "Approve pay items"
   },
   "syncChange": {
     "CREATE": "Create",
@@ -276,7 +286,7 @@
     "description": "Roster synced from LARK or imported from Excel. OA assigns the first wallet on the profile; later changes go through employee request, HR contact check, portal consent, then a different approver.",
     "importTitle": "Import roster",
     "importDescription": "Upload .xlsx or .csv with employee code and full name. You can create portal accounts before the hire date — people who have not started yet are excluded from the current period. This does not replace LARK sync.",
-    "importHint": "Columns: Employee code, Full name, Department, Position, Hired at (MM/DD/YY). A future hire date still creates a portal account; if the date is missing the system uses the 1st of next month.",
+    "importHint": "Columns: Employee code, Full name, Department, Position, Hire date (MM/DD/YY), Payroll process (LARK/INTERNAL, optional).",
     "importSubmit": "Upload roster",
     "walletImportTitle": "Bulk wallet import",
     "walletImportDescription": "OA .xlsx or .csv: employee code and wallet address required. QR images in Excel (DISPIMG) are imported when present. First assignment only; existing wallets are skipped unless you are system_admin. Re-import to attach a missing QR without changing the address.",
@@ -394,7 +404,15 @@
     "portalPasswordReset": "Password reset. The employee must change it on next login.",
     "mustChangePassword": "Must change password",
     "lastLoginAt": "Last login",
-    "passwordChangedAt": "Password changed at"
+    "passwordChangedAt": "Password changed at",
+    "createTitle": "Create employee",
+    "createDescription": "Create a profile by employee code. INTERNAL staff enter items in CMS; LARK staff sync from Base + Approval.",
+    "createSubmit": "Create profile",
+    "createdProfile": "Employee created",
+    "payrollProcess": "Payroll process",
+    "unionId": "LARK union_id",
+    "larkUserId": "LARK user_id",
+    "larkOptional": "Optional. Leave empty if the employee does not use LARK."
   },
   "passwordChange": {
     "REQUIRED": "Must change on login",
@@ -418,6 +436,69 @@
     "needsConfirmation": "Needs confirmation",
     "unchanged": "Unchanged",
     "skippedWithoutUnionId": "Skipped without union_id"
+  },
+  "larkSources": {
+    "title": "LARK Base and Sheet sources",
+    "description": "Configure the LARK bot to read a Base (Bitable) or a Sheet. Paste the URL while that document is open — wiki links do not work. The app also needs bitable:app:readonly and sheets:spreadsheet.readonly.",
+    "create": "Add source",
+    "edit": "Edit source",
+    "name": "Name",
+    "kind": "Type",
+    "purpose": "Purpose",
+    "sourceUrl": "LARK URL",
+    "sourceUrlPlaceholder": "https://…larksuite.com/base/… or /sheets/…",
+    "appToken": "Base app token",
+    "spreadsheetToken": "Spreadsheet token",
+    "table": "Base table",
+    "tableId": "Table ID",
+    "sheet": "Sheet",
+    "range": "Read range (optional)",
+    "chooseTable": "Choose a table",
+    "chooseSheet": "Choose a sheet",
+    "inspect": "Read structure",
+    "inspected": "Read LARK structure",
+    "test": "Test connection",
+    "preview": "Preview sample rows",
+    "previewTitle": "Sample data {{title}}",
+    "previewTruncated": "Showing the first 20 rows only.",
+    "saved": "LARK source saved",
+    "deleted": "LARK source deleted",
+    "confirmDelete": "Delete this LARK source?",
+    "confirmDeleteDescription": "Removes the «{{name}}» configuration. LARK data and employee records stay untouched.",
+    "enabled": "Allow the bot to read this source",
+    "employeeCodeField": "Employee-code column",
+    "employeeCodePlaceholder": "Column name on the Base/Sheet, e.g. Employee No",
+    "lastTest": "Last test",
+    "testOk": "OK",
+    "testFail": "Failed",
+    "botTitle": "System LARK bot",
+    "botOn": "Enabled. Calls {{url}} with the server app id/secret.",
+    "botOff": "Disabled. Turn on LARK_SYNC_ENABLED and set LARK_APP_ID / LARK_APP_SECRET on the API.",
+    "botMissing": "Missing app id or secret — LARK cannot be called.",
+    "kinds": {
+      "BASE": "Lark Base",
+      "SHEET": "Lark Sheet"
+    },
+    "purposes": {
+      "ATTENDANCE": "Attendance",
+      "PAYROLL": "Payroll",
+      "PENALTY": "Penalty",
+      "EMPLOYEE": "Employees",
+      "GENERIC": "Other"
+    },
+    "status": {
+      "ACTIVE": "On",
+      "DISABLED": "Off"
+    },
+    "fieldMap": {
+      "occurredOn": "Occurred-on column",
+      "hours": "Hours column",
+      "amount": "Amount column",
+      "type": "Type column",
+      "reason": "Reason column",
+      "approvalInstanceId": "Approval instance column",
+      "approvalStatus": "Approval status column"
+    }
   },
   "imports": {
     "title": "Import files",
@@ -806,10 +887,93 @@
     "FAILURE": "Failure",
     "DENIED": "Denied",
     "resourceId": "Resource ID",
-    "actorUserId": "Actor user ID"
+    "actorUserId": "Actor user ID",
+    "ip": "IP",
+    "payload": "JSON"
   },
   "account": {
     "title": "My account",
     "description": "Change your password. Enter the new password twice. All other sessions will be revoked."
+  },
+  "payrollProcess": {
+    "LARK": "LARK",
+    "INTERNAL": "Internal (CMS)"
+  },
+  "payItemStatus": {
+    "DRAFT": "Draft",
+    "PENDING_APPROVAL": "Pending approval",
+    "APPROVED": "Approved",
+    "REJECTED": "Rejected",
+    "INCLUDED": "Included in payroll"
+  },
+  "payItemSource": {
+    "MANUAL": "CMS form",
+    "FILE_IMPORT": "Excel",
+    "LARK_BASE": "LARK Base"
+  },
+  "payItems": {
+    "title": "Overtime / penalty items",
+    "description": "Two intake channels, one payroll period. CMS items are created by data entry and approved by a different user. LARK ingest only keeps approved Approval instances. Dual-source duplicates warn and do not double-count.",
+    "create": "Create item",
+    "created": "Draft item created",
+    "import": "Import Excel",
+    "importSubmit": "Upload items",
+    "importHint": "Columns: Employee code, Date, Type, Hours, Amount, Reason.",
+    "imported": "Imported {{count}} items",
+    "larkSync": "Sync LARK Base",
+    "synced": "Synced: created {{created}}, updated {{updated}}, skipped {{skipped}}",
+    "submit": "Submit",
+    "submitted": "Submitted for approval",
+    "approve": "Approve",
+    "approved": "Item approved",
+    "reject": "Reject",
+    "rejected": "Item rejected",
+    "code": "Item code",
+    "occurredOn": "Occurred on",
+    "type": "Type",
+    "hours": "Hours",
+    "amount": "Amount",
+    "source": "Source",
+    "duplicate": "Other-source duplicate",
+    "duplicates": "Duplicates",
+    "missing": "Missing items this period",
+    "sodHint": "The person who created an item cannot approve it."
+  },
+  "payItemKind": {
+    "EARNING": "Earning",
+    "DEDUCTION": "Deduction"
+  },
+  "payItemUnit": {
+    "HOURS": "Hours",
+    "AMOUNT": "Amount",
+    "BOTH": "Hours or amount"
+  },
+  "payrollComponent": {
+    "BASE_SALARY": "Base salary",
+    "ALLOWANCE": "Allowance",
+    "BONUS": "Bonus / gifts / commission",
+    "OVERTIME": "Overtime",
+    "PENALTY": "Penalty",
+    "TAX": "Tax",
+    "INSURANCE": "Insurance",
+    "ADVANCE": "Advance",
+    "ADJUSTMENT": "Adjustment",
+    "OTHER": "Other (does not replace Excel group)"
+  },
+  "payItemTypes": {
+    "title": "Pay item types",
+    "description": "Configure line-item types and map each to a payroll component. Seniority, gifts and commission on the period payroll file are not configured here.",
+    "hint": "One-off items should map to Other or Adjustment. Mapping Overtime/Penalty/Bonus/Allowance replaces that whole Excel group once items are approved.",
+    "create": "Add type",
+    "edit": "Edit type",
+    "saved": "Pay item type saved",
+    "code": "Type code",
+    "label": "Label",
+    "kind": "Earning / deduction",
+    "component": "Payroll group",
+    "unit": "Unit",
+    "enabled": "Allow new items of this type",
+    "replaceWarning": "This group already exists on the payroll file. Approved items replace the whole group instead of adding a line.",
+    "otherHint": "OTHER/ADJUSTMENT is added to components without clearing other Excel groups."
   }
 }

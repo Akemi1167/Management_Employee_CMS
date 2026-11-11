@@ -38,12 +38,14 @@ export function EmployeesListPage() {
   const [departmentCode, setDepartmentCode] = useState(searchParams.get('departmentCode') ?? '');
   const [regionCode, setRegionCode] = useState(initialUnassigned ? '' : (searchParams.get('regionCode') ?? ''));
   const [employmentStatus, setEmploymentStatus] = useState(searchParams.get('employmentStatus') ?? '');
+  const [payrollProcess, setPayrollProcess] = useState(searchParams.get('payrollProcess') ?? '');
   const [applied, setApplied] = useState({
     query: searchParams.get('query') ?? '',
     departmentCode: searchParams.get('departmentCode') ?? '',
     regionCode: initialUnassigned ? '' : (searchParams.get('regionCode') ?? ''),
     unassignedOnly: initialUnassigned,
     employmentStatus: searchParams.get('employmentStatus') ?? '',
+    payrollProcess: searchParams.get('payrollProcess') ?? '',
   });
   const [page, setPage] = useState(1);
 
@@ -58,6 +60,7 @@ export function EmployeesListPage() {
         regionCode: applied.unassignedOnly ? undefined : applied.regionCode || undefined,
         unassignedRegion: applied.unassignedOnly || undefined,
         employmentStatus: applied.employmentStatus || undefined,
+        payrollProcess: applied.payrollProcess || undefined,
       }),
   });
   const managers = useQuery({
@@ -76,6 +79,7 @@ export function EmployeesListPage() {
     if (next.unassignedOnly) params.set('unassigned', '1');
     else if (next.regionCode) params.set('regionCode', next.regionCode);
     if (next.employmentStatus) params.set('employmentStatus', next.employmentStatus);
+    if (next.payrollProcess) params.set('payrollProcess', next.payrollProcess);
     setSearchParams(params, { replace: true });
     setApplied(next);
   };
@@ -91,6 +95,7 @@ export function EmployeesListPage() {
       regionCode: regionCode.trim(),
       unassignedOnly: false,
       employmentStatus: status,
+      payrollProcess,
     });
   };
 
@@ -132,6 +137,11 @@ export function EmployeesListPage() {
       },
     },
     { key: 'position', header: t('employees.position'), render: (row) => row.position || '—' },
+    {
+      key: 'payrollProcess',
+      header: t('employees.payrollProcess'),
+      render: (row) => <StatusBadge value={row.payrollProcess ?? 'INTERNAL'} ns="payrollProcess" />,
+    },
     {
       key: 'employmentStatus',
       header: t('common.status'),
@@ -206,9 +216,14 @@ export function EmployeesListPage() {
               <Link to="/regions">{t('nav.regions')}</Link>
             </Button>
             {canImport ? (
-              <Button asChild>
-                <Link to="/employees/import">{t('employees.importTitle')}</Link>
-              </Button>
+              <>
+                <Button variant="outline" asChild>
+                  <Link to="/employees/create">{t('employees.createTitle')}</Link>
+                </Button>
+                <Button asChild>
+                  <Link to="/employees/import">{t('employees.importTitle')}</Link>
+                </Button>
+              </>
             ) : null}
           </div>
         }
@@ -240,6 +255,11 @@ export function EmployeesListPage() {
           <option value="ON_LEAVE">{t('employment.ON_LEAVE')}</option>
           <option value="SUSPENDED">{t('employment.SUSPENDED')}</option>
           <option value="TERMINATED">{t('employment.TERMINATED')}</option>
+        </Select>
+        <Select value={payrollProcess} onChange={(e) => setPayrollProcess(e.target.value)}>
+          <option value="">{t('common.all')}</option>
+          <option value="INTERNAL">{t('payrollProcess.INTERNAL')}</option>
+          <option value="LARK">{t('payrollProcess.LARK')}</option>
         </Select>
         <Button onClick={() => applyFilters()}>
           <Search className="h-4 w-4" />

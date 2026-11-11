@@ -6,6 +6,7 @@ import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { DataTable, type Column } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
+import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { cardClass } from '@/constants/theme';
@@ -32,6 +33,7 @@ export function AuditListPage() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [page, setPage] = useState(1);
+  const [selected, setSelected] = useState<AuditEvent | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['audit', action, result, resourceType, resourceId, actorUserId, from, to, page],
@@ -53,15 +55,16 @@ export function AuditListPage() {
     { key: 'occurredAt', header: t('audit.occurredAt'), render: (row) => formatDate(row.occurredAt) },
     { key: 'action', header: t('audit.action') },
     {
-      key: 'actorRole',
+      key: 'actor',
       header: t('audit.actor'),
-      sortValue: (row) => row.actorRole ?? row.actorUserId,
-      render: (row) => row.actorRole ?? row.actorUserId ?? '—',
+      sortValue: (row) => row.actor ?? row.actorLabel ?? row.actorRole ?? row.actorUserId,
+      render: (row) => row.actor ?? row.actorLabel ?? row.actorRole ?? row.actorUserId ?? '—',
     },
     { key: 'resourceType', header: t('audit.resource') },
     { key: 'resourceId', header: t('audit.resourceId') },
     { key: 'result', header: t('audit.result'), render: (row) => <StatusBadge value={row.result} ns="audit" /> },
     { key: 'reason', header: t('common.reason') },
+    { key: 'ip', header: t('audit.ip'), render: (row) => row.ip ?? '—' },
   ];
 
   return (
@@ -113,8 +116,19 @@ export function AuditListPage() {
         columns={columns}
         data={data?.items ?? []}
         loading={isLoading}
+        onRowClick={setSelected}
         pagination={{ page, pageSize: 20, total: data?.total ?? 0, onPageChange: setPage }}
       />
+      <Dialog
+        open={Boolean(selected)}
+        onClose={() => setSelected(null)}
+        title={t('audit.payload')}
+        className="max-w-3xl"
+      >
+        <pre className="max-h-[60vh] overflow-auto whitespace-pre-wrap break-all text-xs text-[#d5dbe8]">
+          {selected ? JSON.stringify(selected.payload ?? selected, null, 2) : ''}
+        </pre>
+      </Dialog>
     </PageContainer>
   );
 }

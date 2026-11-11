@@ -60,6 +60,15 @@ export function deleteEmployee(id: string, reason: string) {
   );
 }
 
+export const WIPE_ALL_EMPLOYEES_PHRASE = 'XOA TAT CA NHAN VIEN';
+
+export function wipeAllEmployees(reason: string) {
+  return apiPost<{ deleted: Record<string, number> }>(`${API_ENDPOINTS.EMPLOYEES}/wipe-all`, {
+    confirmPhrase: WIPE_ALL_EMPLOYEES_PHRASE,
+    reason,
+  });
+}
+
 export function updateEmployee(
   id: string,
   body: {

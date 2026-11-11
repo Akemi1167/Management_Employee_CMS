@@ -1,33 +1,49 @@
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { Search } from 'lucide-react';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { DataTable, type Column } from '@/components/shared/data-table';
 import { EmployeeSuggestInput } from '@/components/shared/employee-suggest-input';
 import { StatusBadge } from '@/components/shared/status-badge';
+import { StepUpDialog } from '@/components/shared/step-up-dialog';
 import { Button } from '@/components/ui/button';
+import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
-import { cardClass } from '@/constants/theme';
+import { cardClass, textSubtle } from '@/constants/theme';
 import { PERMISSION } from '@/constants/api-endpoints';
+import { getApiErrorMessage } from '@/lib/api-client';
 import { formatDay } from '@/lib/period';
 import { hasAssignedWallet } from '@/lib/wallet-workflow';
 import { managersByRegion } from '@/lib/region-managers';
-import { fetchEmployees } from '@/services/employee.service';
+import { fetchEmployees, WIPE_ALL_EMPLOYEES_PHRASE, wipeAllEmployees } from '@/services/employee.service';
 import { fetchUsers } from '@/services/user.service';
 import { useAuthStore } from '@/stores/auth-store';
 import type { Employee } from '@/types/api';
 
 const PAGE_SIZE = 20;
 
+function runOrStepUp(error: unknown, onStepUp: () => void) {
+  const message = getApiErrorMessage(error);
+  if (/xac thuc lai|xác thực lại/i.test(message)) {
+    onStepUp();
+    return;
+  }
+  toast.error(message);
+}
+
 export function EmployeesListPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const canImport = useAuthStore((s) => s.hasPermission(PERMISSION.EMPLOYEE_WRITE));
+  const isAdmin = useAuthStore((s) => Boolean(s.user?.roles.includes('system_admin')));
   const canUpdate = useAuthStore((s) => s.hasPermission(PERMISSION.EMPLOYEE_UPDATE));
   const canWallet = useAuthStore((s) => s.hasPermission(PERMISSION.WALLET_WRITE));
   const canWalletRead = useAuthStore((s) => s.hasPermission(PERMISSION.WALLET_READ));
@@ -48,6 +64,10 @@ export function EmployeesListPage() {
     payrollProcess: searchParams.get('payrollProcess') ?? '',
   });
   const [page, setPage] = useState(1);
+  const [wipeOpen, setWipeOpen] = useState(false);
+  const [wipePhrase, setWipePhrase] = useState('');
+  const [wipeReason, setWipeReason] = useState('');
+  const [stepUp, setStepUp] = useState<{ retry: () => void } | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['employees', applied, page],
@@ -98,6 +118,18 @@ export function EmployeesListPage() {
       payrollProcess,
     });
   };
+
+  const wipe = useMutation({
+    mutationFn: () => wipeAllEmployees(wipeReason.trim()),
+    onSuccess: (result) => {
+      toast.success(t('employees.wipeAllDone', { count: result.deleted.employees ?? 0 }));
+      setWipeOpen(false);
+      setWipePhrase('');
+      setWipeReason('');
+      void queryClient.invalidateQueries({ queryKey: ['employees'] });
+    },
+    onError: (error) => runOrStepUp(error, () => setStepUp({ retry: () => wipe.mutate() })),
+  });
 
   const columns: Column<Employee>[] = [
     { key: 'employeeCode', header: t('employees.code') },
@@ -225,6 +257,11 @@ export function EmployeesListPage() {
                 </Button>
               </>
             ) : null}
+            {isAdmin ? (
+              <Button variant="destructive" onClick={() => setWipeOpen(true)}>
+                {t('employees.wipeAll')}
+              </Button>
+            ) : null}
           </div>
         }
       />
@@ -280,6 +317,47 @@ export function EmployeesListPage() {
           total: data?.total ?? 0,
           onPageChange: setPage,
         }}
+      />
+      <Dialog
+        open={wipeOpen}
+        onClose={() => setWipeOpen(false)}
+        title={t('employees.wipeAll')}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setWipeOpen(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={
+                wipe.isPending ||
+                wipePhrase.trim() !== WIPE_ALL_EMPLOYEES_PHRASE ||
+                wipeReason.trim().length < 10
+              }
+              onClick={() => wipe.mutate()}
+            >
+              {t('employees.wipeAllConfirm')}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <p className={`text-sm ${textSubtle}`}>{t('employees.wipeAllHint')}</p>
+          <div className="space-y-1.5">
+            <Label>{t('employees.wipeAllPhraseLabel', { phrase: WIPE_ALL_EMPLOYEES_PHRASE })}</Label>
+            <Input value={wipePhrase} onChange={(event) => setWipePhrase(event.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>{t('common.reason')}</Label>
+            <Input value={wipeReason} onChange={(event) => setWipeReason(event.target.value)} />
+          </div>
+        </div>
+      </Dialog>
+      <StepUpDialog
+        open={Boolean(stepUp)}
+        action="employee:write:wipe-all"
+        onClose={() => setStepUp(null)}
+        onVerified={() => stepUp?.retry()}
       />
     </PageContainer>
   );

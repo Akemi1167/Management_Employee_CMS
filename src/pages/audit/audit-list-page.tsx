@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { cardClass } from '@/constants/theme';
 import { AUDIT_ACTIONS } from '@/constants/api-endpoints';
+import { auditActionLabel, auditActorLabel, auditTargetLabel } from '@/lib/audit-display';
 import { formatDate } from '@/lib/period';
 import { fetchAuditEvents } from '@/services/audit.service';
 import type { AuditEvent } from '@/types/api';
@@ -53,17 +54,26 @@ export function AuditListPage() {
 
   const columns: Column<AuditEvent>[] = [
     { key: 'occurredAt', header: t('audit.occurredAt'), render: (row) => formatDate(row.occurredAt) },
-    { key: 'action', header: t('audit.action') },
+    {
+      key: 'action',
+      header: t('audit.action'),
+      sortValue: (row) => auditActionLabel(t, row.action),
+      render: (row) => auditActionLabel(t, row.action),
+    },
     {
       key: 'actor',
       header: t('audit.actor'),
-      sortValue: (row) => row.actor ?? row.actorLabel ?? row.actorRole ?? row.actorUserId,
-      render: (row) => row.actor ?? row.actorLabel ?? row.actorRole ?? row.actorUserId ?? '—',
+      sortValue: (row) => auditActorLabel(t, row),
+      render: (row) => auditActorLabel(t, row),
     },
-    { key: 'resourceType', header: t('audit.resource') },
-    { key: 'resourceId', header: t('audit.resourceId') },
+    {
+      key: 'resourceType',
+      header: t('audit.resource'),
+      sortValue: (row) => auditTargetLabel(t, row),
+      render: (row) => auditTargetLabel(t, row),
+    },
     { key: 'result', header: t('audit.result'), render: (row) => <StatusBadge value={row.result} ns="audit" /> },
-    { key: 'reason', header: t('common.reason') },
+    { key: 'reason', header: t('common.reason'), render: (row) => row.reason || '—' },
     { key: 'ip', header: t('audit.ip'), render: (row) => row.ip ?? '—' },
   ];
 
@@ -81,7 +91,7 @@ export function AuditListPage() {
           <option value="">{t('audit.action')}</option>
           {AUDIT_ACTIONS.map((value) => (
             <option key={value} value={value}>
-              {value}
+              {auditActionLabel(t, value)}
             </option>
           ))}
         </Select>
@@ -122,12 +132,24 @@ export function AuditListPage() {
       <Dialog
         open={Boolean(selected)}
         onClose={() => setSelected(null)}
-        title={t('audit.payload')}
+        title={selected ? auditActionLabel(t, selected.action) : t('audit.payload')}
         className="max-w-3xl"
       >
-        <pre className="max-h-[60vh] overflow-auto whitespace-pre-wrap break-all text-xs text-[#d5dbe8]">
-          {selected ? JSON.stringify(selected.payload ?? selected, null, 2) : ''}
-        </pre>
+        {selected ? (
+          <div className="space-y-3">
+            <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm text-[#eef0f6]">
+              <dt className="text-[#9aa3b5]">{t('audit.actor')}</dt>
+              <dd>{auditActorLabel(t, selected)}</dd>
+              <dt className="text-[#9aa3b5]">{t('audit.resource')}</dt>
+              <dd>{auditTargetLabel(t, selected)}</dd>
+              <dt className="text-[#9aa3b5]">{t('common.reason')}</dt>
+              <dd>{selected.reason || '—'}</dd>
+            </dl>
+            <pre className="max-h-[50vh] overflow-auto whitespace-pre-wrap break-all text-xs text-[#d5dbe8]">
+              {JSON.stringify(selected.payload ?? selected, null, 2)}
+            </pre>
+          </div>
+        ) : null}
       </Dialog>
     </PageContainer>
   );

@@ -734,6 +734,7 @@ export interface AuditEvent {
   action: string;
   resourceType: string;
   resourceId: string | null;
+  resourceLabel?: string | null;
   employeeId: string | null;
   employeeCode: string | null;
   employeeName: string | null;

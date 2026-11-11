@@ -17,6 +17,7 @@ import { PERMISSION } from '@/constants/api-endpoints';
 import { cardClass, sectionAccent, textSubtle } from '@/constants/theme';
 import { getApiErrorMessage } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
+import { auditActionLabel, auditTargetLabel } from '@/lib/audit-display';
 import { formatDate } from '@/lib/period';
 import { fetchAuditEvents } from '@/services/audit.service';
 import { disableUserMfa, enableUserMfa, resetUserPassword, setUserPassword } from '@/services/user.service';
@@ -170,12 +171,17 @@ export function UserSecurityPanel({
 
   const activityColumns: Column<AuditEvent>[] = [
     { key: 'occurredAt', header: t('audit.occurredAt'), render: (row) => formatDate(row.occurredAt) },
-    { key: 'action', header: t('audit.action') },
+    {
+      key: 'action',
+      header: t('audit.action'),
+      sortValue: (row) => auditActionLabel(t, row.action),
+      render: (row) => auditActionLabel(t, row.action),
+    },
     {
       key: 'resource',
       header: t('audit.resource'),
-      sortValue: (row) => row.resourceType,
-      render: (row) => row.resourceType || '—',
+      sortValue: (row) => auditTargetLabel(t, row),
+      render: (row) => auditTargetLabel(t, row),
     },
     {
       key: 'result',

@@ -944,6 +944,12 @@ function UserForm({ existing, panel = 'all' }: { existing?: AdminUser; panel?: U
               {t('users.scopeSection')}
             </h2>
             <p className={cn('mt-1.5 text-sm', textSubtle)}>{t('users.scopeHint')}</p>
+            {!allEmployees && regionCodesOf(regions).length !== 1 ? (
+              <div className="mt-3 flex gap-3 rounded-lg border border-[#fbbf24]/35 bg-[#fbbf24]/10 px-3 py-2.5 text-sm text-[#fbbf24]">
+                <ShieldAlert className="mt-0.5 size-4 shrink-0" />
+                <p>{t('users.scopeRoleNotEnough')}</p>
+              </div>
+            ) : null}
           </div>
           <div className="flex items-start justify-between gap-4 rounded-lg border border-[#2a3040] bg-[#1a1e28]/50 px-3 py-3">
             <div>

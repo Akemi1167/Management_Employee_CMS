@@ -42,7 +42,8 @@ export function EmployeesListPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
-  const canImport = useAuthStore((s) => s.hasPermission(PERMISSION.EMPLOYEE_WRITE));
+  const canCreate = useAuthStore((s) => s.hasPermission(PERMISSION.EMPLOYEE_WRITE));
+  const canImport = useAuthStore((s) => s.hasPermission(PERMISSION.EMPLOYEE_UPDATE));
   const isAdmin = useAuthStore((s) => Boolean(s.user?.roles.includes('system_admin')));
   const canUpdate = useAuthStore((s) => s.hasPermission(PERMISSION.EMPLOYEE_UPDATE));
   const canWallet = useAuthStore((s) => s.hasPermission(PERMISSION.WALLET_WRITE));
@@ -247,15 +248,15 @@ export function EmployeesListPage() {
             <Button variant="outline" asChild>
               <Link to="/regions">{t('nav.regions')}</Link>
             </Button>
+            {canCreate ? (
+              <Button variant="outline" asChild>
+                <Link to="/employees/create">{t('employees.createTitle')}</Link>
+              </Button>
+            ) : null}
             {canImport ? (
-              <>
-                <Button variant="outline" asChild>
-                  <Link to="/employees/create">{t('employees.createTitle')}</Link>
-                </Button>
-                <Button asChild>
-                  <Link to="/employees/import">{t('employees.importTitle')}</Link>
-                </Button>
-              </>
+              <Button asChild>
+                <Link to="/employees/import">{t('employees.importTitle')}</Link>
+              </Button>
             ) : null}
             {isAdmin ? (
               <Button variant="destructive" onClick={() => setWipeOpen(true)}>

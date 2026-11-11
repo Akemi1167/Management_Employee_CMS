@@ -408,6 +408,8 @@ export interface EmployeeFileImportResult {
   created: number;
   updated: number;
   unchanged: number;
+  portalAccountsCreated?: number;
+  assignedRegion?: string | null;
   errors: { rowNumber: number; employeeCode: string | null; message: string }[];
 }
 

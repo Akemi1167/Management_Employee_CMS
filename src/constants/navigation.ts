@@ -55,6 +55,12 @@ export const NAVIGATION: NavGroup[] = [
         permission: PERMISSION.EMPLOYEE_READ,
       },
       {
+        labelKey: 'employees.importTitle',
+        to: '/employees/import',
+        icon: FileUp,
+        permission: PERMISSION.EMPLOYEE_UPDATE,
+      },
+      {
         labelKey: 'nav.employeeSync',
         to: '/employee-sync',
         icon: Upload,
@@ -197,7 +203,7 @@ export const PATH_PERMISSIONS: Array<{ match: string; permission?: string; permi
   { match: '/', permission: undefined },
   { match: '/regions', permission: PERMISSION.EMPLOYEE_READ },
   { match: '/employees/wallets/import', permission: PERMISSION.WALLET_WRITE },
-  { match: '/employees/import', permission: PERMISSION.EMPLOYEE_WRITE },
+  { match: '/employees/import', permission: PERMISSION.EMPLOYEE_UPDATE },
   { match: '/employees/create', permission: PERMISSION.EMPLOYEE_WRITE },
   { match: '/employees', permission: PERMISSION.EMPLOYEE_READ },
   { match: '/employee-sync', permission: PERMISSION.EMPLOYEE_READ },

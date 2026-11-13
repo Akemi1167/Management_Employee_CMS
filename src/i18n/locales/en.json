@@ -729,6 +729,8 @@
     "disable": "Disable account",
     "disableReason": "Disable reason (min 10 characters)",
     "disabled": "Account disabled",
+    "cannotLockSelf": "You cannot lock the account you are signed in with",
+    "cannotResetSelf": "You cannot reset your own password from the list. Use Change my password.",
     "cannotEditSelf": "You cannot change your own roles, permissions, or data scope",
     "cannotEditSelfBanner": "This is the account you are signed in with. You can turn 2FA on or off; you cannot change your own roles, permissions, or scope (separation of duties).",
     "mfa": "Two-factor authentication (2FA)",

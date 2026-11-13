@@ -666,6 +666,8 @@
     "disable": "停用账号",
     "disableReason": "停用原因（至少 10 个字符）",
     "disabled": "账号已停用",
+    "cannotLockSelf": "不能锁定当前登录账号",
+    "cannotResetSelf": "不能在列表中重置自己的密码。请使用“修改我的密码”。",
     "cannotEditSelf": "不能修改自己的角色、权限或数据范围",
     "cannotEditSelfBanner": "这是当前登录账号。可以开关双重认证；不能改自己的角色、权限或范围（职责分离）。",
     "mfa": "双重认证 (2FA)",

@@ -303,22 +303,48 @@ export function UsersListPage() {
                 <QrCode className="h-4 w-4" />
               </RowIcon>
             ) : null}
-            {canDisable && !isSelf ? (
-              <RowIcon
-                title={row.status === 'ACTIVE' ? t('users.disable') : t('users.enable')}
-                onClick={() => openStatus(row)}
-              >
-                {row.status === 'ACTIVE' ? (
-                  <Lock className="h-4 w-4 text-[#f87171]" />
-                ) : (
-                  <LockOpen className="h-4 w-4 text-[#4ade80]" />
-                )}
-              </RowIcon>
+            {canDisable ? (
+              isSelf ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-8 opacity-40"
+                  title={t('users.cannotLockSelf')}
+                  disabled
+                >
+                  <Lock className="h-4 w-4" />
+                </Button>
+              ) : (
+                <RowIcon
+                  title={row.status === 'ACTIVE' ? t('users.disable') : t('users.enable')}
+                  onClick={() => openStatus(row)}
+                >
+                  {row.status === 'ACTIVE' ? (
+                    <Lock className="h-4 w-4 text-[#f87171]" />
+                  ) : (
+                    <LockOpen className="h-4 w-4 text-[#4ade80]" />
+                  )}
+                </RowIcon>
+              )
             ) : null}
-            {canUpdate && !isSelf ? (
-              <RowIcon title={t('users.resetPassword')} onClick={() => openReset(row)}>
-                <KeyRound className="h-4 w-4 text-[#fbbf24]" />
-              </RowIcon>
+            {canUpdate ? (
+              isSelf ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-8 opacity-40"
+                  title={t('users.cannotResetSelf')}
+                  disabled
+                >
+                  <KeyRound className="h-4 w-4" />
+                </Button>
+              ) : (
+                <RowIcon title={t('users.resetPassword')} onClick={() => openReset(row)}>
+                  <KeyRound className="h-4 w-4 text-[#fbbf24]" />
+                </RowIcon>
+              )
             ) : null}
             <RowIcon title={t('users.tabs.access')} to={`/users/${row.id}?tab=access`}>
               <Shield className="h-4 w-4" />

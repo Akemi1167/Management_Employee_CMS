@@ -729,6 +729,8 @@
     "disable": "Khóa tài khoản",
     "disableReason": "Lý do khóa (tối thiểu 10 ký tự)",
     "disabled": "Đã khóa tài khoản",
+    "cannotLockSelf": "Không tự khóa tài khoản đang đăng nhập",
+    "cannotResetSelf": "Không tự đặt lại mật khẩu từ danh sách. Dùng Đổi mật khẩu của tôi.",
     "cannotEditSelf": "Không được tự sửa vai trò, quyền hoặc phạm vi của chính mình",
     "cannotEditSelfBanner": "Đây là tài khoản đang đăng nhập. Có thể tắt/bật 2FA; không tự đổi vai trò, quyền hay phạm vi (tách nhiệm vụ).",
     "mfa": "Xác thực hai lớp (2FA)",

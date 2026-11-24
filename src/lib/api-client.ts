@@ -126,6 +126,11 @@ export async function apiPatch<T>(url: string, body?: unknown, headers?: Record<
   return data;
 }
 
+export async function apiPut<T>(url: string, body?: unknown, headers?: Record<string, string>) {
+  const { data } = await apiClient.put<T>(url, body, { headers });
+  return data;
+}
+
 export async function apiDelete<T>(url: string) {
   const { data } = await apiClient.delete<T>(url);
   return data;

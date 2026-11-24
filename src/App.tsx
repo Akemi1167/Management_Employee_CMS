@@ -15,7 +15,14 @@ export function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AppRoutes />
-      <Toaster position="top-right" richColors closeButton theme="dark" />
+      <Toaster
+        position="top-right"
+        richColors
+        closeButton
+        theme="dark"
+        style={{ zIndex: 100000 }}
+        toastOptions={{ style: { zIndex: 100000 } }}
+      />
     </QueryClientProvider>
   );
 }

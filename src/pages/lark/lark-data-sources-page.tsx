@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/layout/page-header';
 import { CreateButton } from '@/components/shared/create-button';
 import { DataTable, type Column } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -14,10 +15,15 @@ import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { PERMISSION } from '@/constants/api-endpoints';
-import { cardClass, textSubtle } from '@/constants/theme';
+import { cardClass, textColumnHeader, textSubtle } from '@/constants/theme';
 import { getApiErrorMessage } from '@/lib/api-client';
 import { formatDate } from '@/lib/period';
 import { cn } from '@/lib/utils';
+import {
+  fetchLarkAppSettings,
+  testLarkAppSettings,
+  updateLarkAppSettings,
+} from '@/services/lark-app-settings.service';
 import {
   createLarkDataSource,
   deleteLarkDataSource,
@@ -27,17 +33,28 @@ import {
   testLarkDataSource,
   updateLarkDataSource,
 } from '@/services/lark-data-source.service';
+import { fetchPayItemTypes, syncLarkPayItems } from '@/services/pay-item.service';
 import { useAuthStore } from '@/stores/auth-store';
 import type {
+  LarkAppSettings,
   LarkDataSource,
   LarkDataSourceKind,
   LarkDataSourcePurpose,
   LarkInspectResult,
+  LarkPayItemSyncResult,
   LarkPreviewResult,
+  PayItemType,
+  PayrollComponentCode,
 } from '@/types/api';
 
 const KINDS: LarkDataSourceKind[] = ['BASE', 'SHEET'];
 const PURPOSES: LarkDataSourcePurpose[] = ['ATTENDANCE', 'PAYROLL', 'PENALTY', 'EMPLOYEE', 'GENERIC'];
+const LARK_BINDABLE_COMPONENTS = new Set<PayrollComponentCode>([
+  'OVERTIME',
+  'PENALTY',
+  'OTHER',
+  'ADJUSTMENT',
+]);
 
 interface SourceForm {
   id?: string;
@@ -52,11 +69,11 @@ interface SourceForm {
   spreadsheetToken: string;
   sheetId: string;
   range: string;
+  defaultPayItemTypeCode: string;
   employeeCodeField: string;
   occurredOnField: string;
   hoursField: string;
   amountField: string;
-  typeField: string;
   reasonField: string;
   approvalInstanceIdField: string;
   approvalStatusField: string;
@@ -75,11 +92,11 @@ function emptyForm(): SourceForm {
     spreadsheetToken: '',
     sheetId: '',
     range: '',
+    defaultPayItemTypeCode: '',
     employeeCodeField: '',
     occurredOnField: '',
     hoursField: '',
     amountField: '',
-    typeField: '',
     reasonField: '',
     approvalInstanceIdField: '',
     approvalStatusField: '',
@@ -100,11 +117,11 @@ function fromSource(source: LarkDataSource): SourceForm {
     spreadsheetToken: source.spreadsheetToken ?? '',
     sheetId: source.sheetId ?? '',
     range: source.range ?? '',
+    defaultPayItemTypeCode: source.defaultPayItemTypeCode ?? '',
     employeeCodeField: source.fieldMap?.employeeCode ?? '',
     occurredOnField: source.fieldMap?.occurredOn ?? '',
     hoursField: source.fieldMap?.hours ?? '',
     amountField: source.fieldMap?.amount ?? '',
-    typeField: source.fieldMap?.type ?? '',
     reasonField: source.fieldMap?.reason ?? '',
     approvalInstanceIdField: source.fieldMap?.approvalInstanceId ?? '',
     approvalStatusField: source.fieldMap?.approvalStatus ?? '',
@@ -118,7 +135,6 @@ function toPayload(form: SourceForm) {
       occurredOn: form.occurredOnField,
       hours: form.hoursField,
       amount: form.amountField,
-      type: form.typeField,
       reason: form.reasonField,
       approvalInstanceId: form.approvalInstanceIdField,
       approvalStatus: form.approvalStatusField,
@@ -139,6 +155,27 @@ function toPayload(form: SourceForm) {
     sheetId: form.sheetId.trim() || undefined,
     range: form.range.trim() || undefined,
     fieldMap: Object.keys(fieldMap).length > 0 ? fieldMap : undefined,
+    defaultPayItemTypeCode: form.defaultPayItemTypeCode.trim() || null,
+  };
+}
+
+function isLarkBindableType(type: PayItemType) {
+  return type.enabled && LARK_BINDABLE_COMPONENTS.has(type.mapsToPayrollComponent);
+}
+
+interface AppSettingsForm {
+  enabled: boolean;
+  baseUrl: string;
+  appId: string;
+  appSecret: string;
+}
+
+function appSettingsFromApi(settings: LarkAppSettings): AppSettingsForm {
+  return {
+    enabled: settings.enabled,
+    baseUrl: settings.baseUrl || 'https://open.larksuite.com',
+    appId: settings.appId ?? '',
+    appSecret: '',
   };
 }
 
@@ -146,19 +183,42 @@ export function LarkDataSourcesPage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const canWrite = useAuthStore((s) => s.hasPermission(PERMISSION.LARK_DATASOURCE_WRITE));
+  const canSyncPayItems = useAuthStore((s) => s.hasPermission(PERMISSION.PAYITEM_WRITE));
   const [form, setForm] = useState<SourceForm | null>(null);
   const [inspect, setInspect] = useState<LarkInspectResult | null>(null);
   const [preview, setPreview] = useState<LarkPreviewResult | null>(null);
   const [pendingDelete, setPendingDelete] = useState<LarkDataSource | null>(null);
+  const [appForm, setAppForm] = useState<AppSettingsForm | null>(null);
+  const [syncResult, setSyncResult] = useState<LarkPayItemSyncResult | null>(null);
 
   const list = useQuery({
     queryKey: ['lark-data-sources'],
     queryFn: fetchLarkDataSources,
   });
 
+  const appSettings = useQuery({
+    queryKey: ['lark-app-settings'],
+    queryFn: fetchLarkAppSettings,
+  });
+
+  const payItemTypes = useQuery({
+    queryKey: ['pay-item-types'],
+    queryFn: fetchPayItemTypes,
+  });
+
+  const bindableTypes = useMemo(
+    () => (payItemTypes.data?.items ?? []).filter(isLarkBindableType),
+    [payItemTypes.data?.items],
+  );
+
   const invalidate = () => {
     void queryClient.invalidateQueries({ queryKey: ['lark-data-sources'] });
+    void queryClient.invalidateQueries({ queryKey: ['lark-app-settings'] });
+    void queryClient.invalidateQueries({ queryKey: ['pay-items'] });
   };
+
+  const syncedAppForm =
+    appForm ?? (appSettings.data ? appSettingsFromApi(appSettings.data) : null);
 
   const inspectMutation = useMutation({
     mutationFn: () =>
@@ -191,7 +251,12 @@ export function LarkDataSourcesPage() {
     mutationFn: () => {
       if (!form) throw new Error('missing form');
       const body = toPayload(form);
-      return form.id ? updateLarkDataSource(form.id, body) : createLarkDataSource(body);
+      // PATCH UpdateLarkDataSourceDto khong cho `kind` — chi gui khi tao moi.
+      if (form.id) {
+        const { kind: _kind, ...updateBody } = body;
+        return updateLarkDataSource(form.id, updateBody);
+      }
+      return createLarkDataSource(body);
     },
     onSuccess: () => {
       toast.success(t('larkSources.saved'));
@@ -228,6 +293,57 @@ export function LarkDataSourcesPage() {
     onError: (error) => toast.error(getApiErrorMessage(error)),
   });
 
+  const saveAppMutation = useMutation({
+    mutationFn: () => {
+      if (!syncedAppForm) throw new Error('missing app form');
+      return updateLarkAppSettings({
+        enabled: syncedAppForm.enabled,
+        baseUrl: syncedAppForm.baseUrl.trim() || undefined,
+        appId: syncedAppForm.appId.trim() || undefined,
+        appSecret: syncedAppForm.appSecret.trim() || undefined,
+      });
+    },
+    onSuccess: (result) => {
+      toast.success(t('larkSources.appSaved'));
+      setAppForm(appSettingsFromApi(result));
+      invalidate();
+    },
+    onError: (error) => toast.error(getApiErrorMessage(error)),
+  });
+
+  const testAppMutation = useMutation({
+    mutationFn: () => testLarkAppSettings(),
+    onSuccess: (result) => {
+      if (result.ok) toast.success(result.message || t('larkSources.appTestOk'));
+      else toast.error(result.message || t('larkSources.appTestFail'));
+      invalidate();
+    },
+    onError: (error) => toast.error(getApiErrorMessage(error)),
+  });
+
+  const syncSourceMutation = useMutation({
+    mutationFn: (sourceId: string) => {
+      toast.loading(t('larkSources.syncPending'), { id: 'lark-source-sync' });
+      return syncLarkPayItems(sourceId);
+    },
+    onSuccess: (result) => {
+      const summary = t('larkSources.syncDone', {
+        created: result.created ?? 0,
+        updated: result.updated ?? 0,
+        skipped: result.skipped ?? 0,
+      });
+      toast.success(summary, { id: 'lark-source-sync', duration: 8000 });
+      if (result.errors?.length) {
+        toast.error(result.errors.slice(0, 3).join('; '), { duration: 10_000 });
+      }
+      setSyncResult(result);
+      invalidate();
+    },
+    onError: (error) => {
+      toast.error(getApiErrorMessage(error), { id: 'lark-source-sync', duration: 10_000 });
+    },
+  });
+
   const columns: Column<LarkDataSource>[] = useMemo(
     () => [
       { key: 'name', header: t('larkSources.name') },
@@ -240,6 +356,11 @@ export function LarkDataSourcesPage() {
         key: 'purpose',
         header: t('larkSources.purpose'),
         render: (row) => t(`larkSources.purposes.${row.purpose}`),
+      },
+      {
+        key: 'defaultPayItemTypeCode',
+        header: t('larkSources.payItemType'),
+        render: (row) => row.defaultPayItemTypeCode || '—',
       },
       {
         key: 'enabled',
@@ -279,14 +400,95 @@ export function LarkDataSourcesPage() {
         }
       />
 
-      <div className={cn(cardClass, 'mb-6 space-y-2 p-4')}>
-        <p className="text-sm font-medium">{t('larkSources.botTitle')}</p>
-        <p className={cn('text-sm', textSubtle)}>
-          {bot?.enabled
-            ? t('larkSources.botOn', { url: bot.baseUrl })
-            : t('larkSources.botOff')}
-        </p>
-        {bot && !bot.configured ? <p className="text-sm text-[#fbbf24]">{t('larkSources.botMissing')}</p> : null}
+      <div className={cn(cardClass, 'mb-6 space-y-4 p-4')}>
+        <div className="space-y-1">
+          <p className="text-sm font-medium">{t('larkSources.appTitle')}</p>
+          <p className={cn('text-sm', textSubtle)}>{t('larkSources.appHint')}</p>
+        </div>
+
+        {syncedAppForm ? (
+          <div className="space-y-4">
+            <label className="flex items-center gap-3 text-sm">
+              <Switch
+                checked={syncedAppForm.enabled}
+                disabled={!canWrite}
+                onCheckedChange={(checked) =>
+                  setAppForm({ ...syncedAppForm, enabled: checked })
+                }
+              />
+              {t('larkSources.appEnabled')}
+            </label>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label={t('larkSources.appBaseUrl')}>
+                <Input
+                  value={syncedAppForm.baseUrl}
+                  disabled={!canWrite}
+                  placeholder="https://open.larksuite.com"
+                  onChange={(event) =>
+                    setAppForm({ ...syncedAppForm, baseUrl: event.target.value })
+                  }
+                />
+              </Field>
+              <Field label={t('larkSources.appId')}>
+                <Input
+                  value={syncedAppForm.appId}
+                  disabled={!canWrite}
+                  autoComplete="off"
+                  onChange={(event) =>
+                    setAppForm({ ...syncedAppForm, appId: event.target.value })
+                  }
+                />
+              </Field>
+            </div>
+            <Field label={t('larkSources.appSecret')}>
+              <Input
+                type="password"
+                value={syncedAppForm.appSecret}
+                disabled={!canWrite}
+                autoComplete="new-password"
+                placeholder={
+                  appSettings.data?.appSecretConfigured
+                    ? t('larkSources.appSecretConfigured')
+                    : t('larkSources.appSecretPlaceholder')
+                }
+                onChange={(event) =>
+                  setAppForm({ ...syncedAppForm, appSecret: event.target.value })
+                }
+              />
+            </Field>
+            {canWrite ? (
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  onClick={() => saveAppMutation.mutate()}
+                  disabled={saveAppMutation.isPending}
+                >
+                  {t('common.save')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => testAppMutation.mutate()}
+                  disabled={testAppMutation.isPending}
+                >
+                  {t('larkSources.appTest')}
+                </Button>
+              </div>
+            ) : null}
+          </div>
+        ) : appSettings.isLoading ? (
+          <p className={cn('text-sm', textSubtle)}>{t('common.loading')}</p>
+        ) : null}
+
+        <div className={cn('border-t border-[#2a3040] pt-3 text-sm', textSubtle)}>
+          {bot?.configured
+            ? t('larkSources.botStatusOn', {
+                source: t(`larkSources.credentialSource.${bot.source ?? 'none'}`),
+                url: bot.baseUrl,
+                appId: bot.appId || '—',
+              })
+            : t('larkSources.botMissing')}
+        </div>
       </div>
 
       <DataTable
@@ -331,7 +533,11 @@ export function LarkDataSourcesPage() {
             </Field>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label={t('larkSources.kind')}>
-                <Select value={form.kind} onChange={(event) => setForm({ ...form, kind: event.target.value as LarkDataSourceKind })}>
+                <Select
+                  value={form.kind}
+                  disabled={Boolean(form.id)}
+                  onChange={(event) => setForm({ ...form, kind: event.target.value as LarkDataSourceKind })}
+                >
                   {KINDS.map((kind) => (
                     <option key={kind} value={kind}>{t(`larkSources.kinds.${kind}`)}</option>
                   ))}
@@ -345,6 +551,23 @@ export function LarkDataSourcesPage() {
                 </Select>
               </Field>
             </div>
+            {form.kind === 'BASE' ? (
+              <Field label={t('larkSources.payItemType')}>
+                <Select
+                  value={form.defaultPayItemTypeCode}
+                  onChange={(event) => setForm({ ...form, defaultPayItemTypeCode: event.target.value })}
+                >
+                  <option value="">{t('larkSources.payItemTypeNone')}</option>
+                  {bindableTypes.map((type) => (
+                    <option key={type.code} value={type.code}>
+                      {type.label} ({type.code} · {t(`payItemKind.${type.kind}`)} ·{' '}
+                      {t(`payrollComponent.${type.mapsToPayrollComponent}`)})
+                    </option>
+                  ))}
+                </Select>
+                <p className={cn('text-xs', textSubtle)}>{t('larkSources.payItemTypeHint')}</p>
+              </Field>
+            ) : null}
             <Field label={t('larkSources.sourceUrl')}>
               <Input
                 value={form.sourceUrl}
@@ -373,6 +596,24 @@ export function LarkDataSourcesPage() {
                   <Button type="button" variant="secondary" onClick={() => previewMutation.mutate(form.id!)} disabled={previewMutation.isPending}>
                     {t('larkSources.preview')}
                   </Button>
+                  {form.kind === 'BASE' && form.defaultPayItemTypeCode && canWrite ? (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => {
+                        if (!canSyncPayItems) {
+                          toast.error(t('larkSources.syncNeedPayItemWrite'));
+                          return;
+                        }
+                        syncSourceMutation.mutate(form.id!);
+                      }}
+                      disabled={syncSourceMutation.isPending}
+                    >
+                      {syncSourceMutation.isPending
+                        ? t('larkSources.syncPending')
+                        : t('larkSources.syncSource')}
+                    </Button>
+                  ) : null}
                 </>
               ) : null}
             </div>
@@ -417,14 +658,13 @@ export function LarkDataSourcesPage() {
                 onChange={(value) => setForm({ ...form, employeeCodeField: value })}
               />
             </Field>
-            {form.purpose === 'ATTENDANCE' || form.purpose === 'PENALTY' ? (
+            {form.kind === 'BASE' && form.defaultPayItemTypeCode ? (
               <div className="grid gap-3 sm:grid-cols-2">
                 {(
                   [
                     ['occurredOnField', 'occurredOn'],
                     ['hoursField', 'hours'],
                     ['amountField', 'amount'],
-                    ['typeField', 'type'],
                     ['reasonField', 'reason'],
                     ['approvalInstanceIdField', 'approvalInstanceId'],
                     ['approvalStatusField', 'approvalStatus'],
@@ -452,32 +692,25 @@ export function LarkDataSourcesPage() {
         open={Boolean(preview)}
         onClose={() => setPreview(null)}
         title={t('larkSources.previewTitle', { title: preview?.title || '' })}
-        className="max-w-4xl"
+        className="max-w-6xl"
       >
         {preview ? (
-          <div className="overflow-auto">
-            {preview.truncated ? <p className={cn('mb-2 text-xs', textSubtle)}>{t('larkSources.previewTruncated')}</p> : null}
-            <table className="w-full min-w-[32rem] text-left text-sm">
-              <thead>
-                <tr>
-                  {preview.columns.map((column) => (
-                    <th key={column} className="border-b border-[#2a3040] px-2 py-1 font-medium">{column}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {preview.rows.map((row, index) => (
-                  <tr key={index}>
-                    {preview.columns.map((column) => (
-                      <td key={column} className="border-b border-[#2a3040] px-2 py-1">{row[column] || '—'}</td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {preview.rows.length === 0 ? <p className={cn('mt-3 text-sm', textSubtle)}>{t('common.noData')}</p> : null}
-          </div>
+          <LarkPreviewTable preview={preview} />
         ) : null}
+      </Dialog>
+
+      <Dialog
+        open={Boolean(syncResult)}
+        onClose={() => setSyncResult(null)}
+        title={t('larkSources.syncResultTitle')}
+        className="max-w-lg"
+        footer={
+          <Button type="button" onClick={() => setSyncResult(null)}>
+            {t('common.close')}
+          </Button>
+        }
+      >
+        {syncResult ? <LarkSyncResultView result={syncResult} /> : null}
       </Dialog>
 
       <Dialog
@@ -510,6 +743,178 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       {children}
     </div>
   );
+}
+
+function LarkSyncResultView({ result }: { result: LarkPayItemSyncResult }) {
+  const { t } = useTranslation();
+  const cards = [
+    { key: 'created', value: result.created ?? 0, tone: 'text-[#34d399]' },
+    { key: 'updated', value: result.updated ?? 0, tone: 'text-[#4ade80]' },
+    { key: 'unchanged', value: result.unchanged ?? 0, tone: 'text-[#9aa3b5]' },
+    { key: 'skipped', value: result.skipped ?? 0, tone: 'text-[#fbbf24]' },
+  ] as const;
+
+  return (
+    <div className="space-y-4">
+      <p className={cn('text-sm', textSubtle)}>{t('larkSources.syncResultHint')}</p>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {cards.map((card) => (
+          <div
+            key={card.key}
+            className="rounded-lg border border-[#2a3040] bg-[#1a1e28]/60 px-3 py-3 text-center"
+          >
+            <p className={cn('text-2xl font-semibold tabular-nums', card.tone)}>{card.value}</p>
+            <p className="mt-1 text-[11px] uppercase tracking-wide text-[#9aa3b5]">
+              {t(`larkSources.syncStats.${card.key}`)}
+            </p>
+          </div>
+        ))}
+      </div>
+      {result.errors?.length ? (
+        <div className="space-y-2 rounded-lg border border-[#ef4444]/30 bg-[#ef4444]/10 px-3 py-3">
+          <p className="text-sm font-medium text-[#fecaca]">
+            {t('larkSources.syncErrors', { count: result.errors.length })}
+          </p>
+          <ul className="max-h-48 space-y-1 overflow-auto text-xs text-[#fecaca]/90">
+            {result.errors.slice(0, 20).map((error, index) => (
+              <li key={`${index}-${error}`} className="break-words font-mono">
+                {error}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+        <p className="text-sm text-[#34d399]">{t('larkSources.syncNoErrors')}</p>
+      )}
+    </div>
+  );
+}
+
+function LarkPreviewTable({ preview }: { preview: LarkPreviewResult }) {
+  const { t } = useTranslation();
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className={cn('text-xs', textSubtle)}>
+          {preview.truncated
+            ? t('larkSources.previewTruncated')
+            : t('larkSources.previewRowCount', { count: preview.rows.length })}
+        </p>
+        <Badge variant="outline" className="font-mono text-[10px] uppercase tracking-wide">
+          {preview.kind}
+        </Badge>
+      </div>
+
+      {preview.rows.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-[#2a3040] bg-[#1a1e28]/50 px-4 py-10 text-center text-sm text-[#9aa3b5]">
+          {t('common.noData')}
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-xl border border-[#2a3040] bg-[#12151d]">
+          <div className="max-h-[min(60vh,32rem)] overflow-auto">
+            <table className="w-full min-w-[48rem] border-collapse text-left text-sm">
+              <thead className="sticky top-0 z-10 bg-[#1a1e28]/95 backdrop-blur-sm">
+                <tr>
+                  <th className={cn(textColumnHeader, 'whitespace-nowrap px-3 py-2.5 text-right')}>#</th>
+                  {preview.columns.map((column) => (
+                    <th
+                      key={column}
+                      className={cn(textColumnHeader, 'whitespace-nowrap px-3 py-2.5')}
+                      title={column}
+                    >
+                      {column}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {preview.rows.map((row, index) => (
+                  <tr
+                    key={index}
+                    className="border-t border-[#2a3040]/80 transition-colors hover:bg-[#1c2030]/70"
+                  >
+                    <td className="px-3 py-2.5 text-right font-mono text-[11px] text-[#6b7280]">
+                      {index + 1}
+                    </td>
+                    {preview.columns.map((column) => (
+                      <td key={column} className="max-w-[14rem] px-3 py-2.5 align-top">
+                        <PreviewCell column={column} value={row[column]} />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PreviewCell({ column, value }: { column: string; value?: string }) {
+  const raw = (value ?? '').trim();
+  if (!raw) {
+    return <span className="text-[#6b7280]">—</span>;
+  }
+
+  if (isStatusColumn(column)) {
+    const tone = statusTone(raw);
+    return (
+      <Badge variant={tone} className="max-w-full truncate" title={raw}>
+        {raw}
+      </Badge>
+    );
+  }
+
+  const asDate = formatPreviewTimestamp(raw);
+  if (asDate) {
+    return (
+      <span className="whitespace-nowrap font-mono text-xs text-[#eef0f6]" title={raw}>
+        {asDate}
+      </span>
+    );
+  }
+
+  return (
+    <span className="line-clamp-2 break-words text-[#eef0f6]" title={raw}>
+      {raw}
+    </span>
+  );
+}
+
+function isStatusColumn(column: string) {
+  return /status|trạng thái|状态/i.test(column);
+}
+
+function statusTone(value: string): 'success' | 'destructive' | 'upcoming' | 'secondary' {
+  const normalized = value.trim().toLowerCase();
+  if (/approved|approve|đã duyệt|通过|同意|completed|done|success/.test(normalized)) {
+    return 'success';
+  }
+  if (/reject|denied|từ chối|拒绝|fail|error|cancel/.test(normalized)) {
+    return 'destructive';
+  }
+  if (/pending|waiting|chờ|待|in progress|processing/.test(normalized)) {
+    return 'upcoming';
+  }
+  return 'secondary';
+}
+
+/** Chuyen ms/s Unix hoac ISO thanh ngay gio doc duoc. */
+function formatPreviewTimestamp(raw: string): string | null {
+  if (/^\d{13}$/.test(raw)) {
+    return formatDate(new Date(Number(raw)));
+  }
+  if (/^\d{10}$/.test(raw)) {
+    return formatDate(new Date(Number(raw) * 1000));
+  }
+  if (/^\d{4}-\d{2}-\d{2}/.test(raw) || raw.includes('T')) {
+    const date = new Date(raw);
+    if (!Number.isNaN(date.getTime())) return formatDate(date);
+  }
+  return null;
 }
 
 function FieldMapInput({

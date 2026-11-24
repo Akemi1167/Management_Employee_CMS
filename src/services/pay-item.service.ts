@@ -88,8 +88,14 @@ export async function importPayItems(file: File) {
   return data;
 }
 
-export function syncLarkPayItems(sourceId?: string) {
-  return apiPost<LarkPayItemSyncResult>(`${API_ENDPOINTS.PAY_ITEMS}/lark-sync`, sourceId ? { sourceId } : {});
+export async function syncLarkPayItems(sourceId?: string) {
+  // Doc Base co the cham — timeout rieng, khong dung mac dinh 60s.
+  const { data } = await apiClient.post<LarkPayItemSyncResult>(
+    `${API_ENDPOINTS.PAY_ITEMS}/lark-sync`,
+    sourceId ? { sourceId } : {},
+    { timeout: 180_000 },
+  );
+  return data;
 }
 
 export function fetchPayItemReconcile(period: string) {

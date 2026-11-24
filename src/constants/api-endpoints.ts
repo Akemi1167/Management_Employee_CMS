@@ -28,6 +28,7 @@ export const API_ENDPOINTS = {
   USERS: `${API_PREFIX}/users`,
   AUDIT: `${API_PREFIX}/audit-events`,
   LARK_DATA_SOURCES: `${API_PREFIX}/lark/data-sources`,
+  LARK_APP_SETTINGS: `${API_PREFIX}/lark/app-settings`,
   PAY_ITEMS: `${API_PREFIX}/pay-items`,
 } as const;
 
@@ -223,6 +224,8 @@ export const AUDIT_ACTIONS = [
   'LARK_DATASOURCE_UPDATED',
   'LARK_DATASOURCE_DELETED',
   'LARK_DATASOURCE_TESTED',
+  'LARK_APP_SETTINGS_UPDATED',
+  'LARK_APP_SETTINGS_TESTED',
   'PAY_ITEM_TYPE_CREATED',
   'PAY_ITEM_TYPE_UPDATED',
   'PAY_ITEM_CREATED',

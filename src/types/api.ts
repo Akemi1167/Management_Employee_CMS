@@ -574,10 +574,36 @@ export interface PeriodOverview {
 export type LarkDataSourceKind = 'BASE' | 'SHEET';
 export type LarkDataSourcePurpose = 'ATTENDANCE' | 'PAYROLL' | 'PENALTY' | 'EMPLOYEE' | 'GENERIC';
 
+export type LarkCredentialSource = 'database' | 'env' | 'none';
+
 export interface LarkBotStatus {
   enabled: boolean;
   configured: boolean;
   baseUrl: string;
+  source?: LarkCredentialSource;
+  appId?: string | null;
+}
+
+export interface LarkAppSettings {
+  enabled: boolean;
+  baseUrl: string;
+  appId: string | null;
+  appSecretConfigured: boolean;
+  source: LarkCredentialSource;
+  updatedAt: string | null;
+}
+
+export interface LarkAppSettingsUpdate {
+  enabled: boolean;
+  baseUrl?: string;
+  appId?: string;
+  appSecret?: string;
+}
+
+export interface LarkAppSettingsTestResult {
+  ok: boolean;
+  message: string;
+  source: LarkCredentialSource;
 }
 
 export interface LarkDataSource {
@@ -595,6 +621,7 @@ export interface LarkDataSource {
   sheetId: string | null;
   range: string | null;
   fieldMap: Record<string, string> | null;
+  defaultPayItemTypeCode: string | null;
   lastTestedAt: string | null;
   lastTestOk: boolean;
   lastTestMessage: string | null;
@@ -723,6 +750,7 @@ export interface LarkDataSourceUpsert {
   sheetId?: string;
   range?: string;
   fieldMap?: Record<string, string>;
+  defaultPayItemTypeCode?: string | null;
 }
 
 export interface AuditEvent {

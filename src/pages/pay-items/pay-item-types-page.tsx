@@ -160,7 +160,10 @@ export function PayItemTypesPage() {
         }
       />
 
-      <div className={`${cardClass} mb-4 p-4 text-sm ${textSubtle}`}>{t('payItemTypes.hint')}</div>
+      <div className={`${cardClass} mb-4 space-y-2 p-4 text-sm ${textSubtle}`}>
+        <p>{t('payItemTypes.hint')}</p>
+        <p>{t('payItemTypes.larkBindHint')}</p>
+      </div>
 
       <DataTable
         columns={columns}

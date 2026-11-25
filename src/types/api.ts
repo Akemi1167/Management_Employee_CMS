@@ -151,6 +151,8 @@ export interface Employee {
   position: string | null;
   employmentStatus: string;
   payrollProcess?: 'LARK' | 'INTERNAL';
+  payrollPolicyCode?: string | null;
+  payrollPolicyLocked?: boolean;
   hiredAt: string;
   terminatedAt: string | null;
   larkSyncStatus: string | null;
@@ -670,6 +672,8 @@ export interface PayItem {
   source: PayItemSource;
   status: PayItemStatus;
   duplicateOfId: string | null;
+  larkDataSourceId: string | null;
+  larkDataSourceName: string | null;
   larkBaseRecordId: string | null;
   larkApprovalInstanceId: string | null;
   createdBy: string;
@@ -701,6 +705,82 @@ export interface PayItemType {
   unit: PayItemUnit;
 }
 
+export type PayrollPolicyItemGroup = 'SALARY' | 'BENEFIT' | 'RELOCATION' | 'DEDUCTION';
+export type PayrollPolicyRuleKind = 'NONE' | 'CUTOFF' | 'CAP' | 'FACT' | 'FX';
+export type PayrollPolicyAnchor =
+  | 'HIRED_AT'
+  | 'DEMOTION_OR_HIRED'
+  | 'RELOCATED_AT'
+  | 'CONFIRMATION'
+  | 'PROMOTION'
+  | 'DEMOTION'
+  | 'FORM'
+  | 'BIRTHDAY'
+  | 'JOB'
+  | 'CALENDAR';
+export type PayrollPolicyCutoffMode =
+  | 'NONE'
+  | 'DELAY_NEXT_MONTH'
+  | 'PRORATE_100_50'
+  | 'SAME_MONTH'
+  | 'FROM_EVENT_DAY'
+  | 'SKIP_FIRST_MONTH';
+export type PayrollPolicyFormulaKind =
+  | 'FLAT'
+  | 'PER_MONTH'
+  | 'DAYS_IN_MONTH'
+  | 'PER_DAY_DIVISOR'
+  | 'PERCENT_BASE';
+export type PayrollPolicyResolveSource = 'EMPLOYEE_OVERRIDE' | 'DEPARTMENT' | 'NONE';
+
+export interface PayrollPolicyRateRow {
+  key: string;
+  label: string | null;
+  amount: string;
+  currency: string | null;
+}
+
+export interface PayrollPolicyItem {
+  payItemTypeCode: string;
+  group: PayrollPolicyItemGroup;
+  enabled: boolean;
+  ruleKind: PayrollPolicyRuleKind;
+  capAmount: string | null;
+  capCurrency: string | null;
+  factKey: string | null;
+  anchorKey: PayrollPolicyAnchor | null;
+  cutoffMode: PayrollPolicyCutoffMode;
+  milestoneMonths: number | null;
+  milestoneDays: number | null;
+  eligibilityKey: string | null;
+  rateAmount: string | null;
+  rateCurrency: string | null;
+  formulaKind?: PayrollPolicyFormulaKind;
+  rateDivisorDays?: number | null;
+  rateTable?: PayrollPolicyRateRow[];
+  note: string | null;
+}
+
+export interface PayrollPolicy {
+  id: string;
+  code: string;
+  name: string;
+  enabled: boolean;
+  cutoffDay: number;
+  workHoursPerDay: number;
+  fx: { source: string; payoutDay: number };
+  departmentCodes: string[];
+  items: PayrollPolicyItem[];
+}
+
+export interface PayrollPolicyResolve {
+  source: PayrollPolicyResolveSource;
+  departmentCode: string | null;
+  payrollPolicyCode: string | null;
+  payrollPolicyLocked: boolean;
+  policy: PayrollPolicy | null;
+}
+
 export interface PayItemReconcile {
   period: string;
   bySource: Record<string, { count: number; amount: string }>;
@@ -728,12 +808,71 @@ export interface PayItemImportResult {
   errors: Array<{ rowNumber: number; message: string }>;
 }
 
+export type PayItemLarkSyncRunStatus = 'RUNNING' | 'SUCCESS' | 'PARTIAL' | 'FAILED';
+export type PayItemLarkSyncRowOutcome =
+  | 'created'
+  | 'updated'
+  | 'unchanged'
+  | 'skipped'
+  | 'error';
+
 export interface LarkPayItemSyncResult {
+  runId?: string;
+  code?: string;
+  status?: PayItemLarkSyncRunStatus;
   created: number;
   updated: number;
   unchanged: number;
   skipped: number;
   errors: string[];
+}
+
+export interface PayItemLarkSyncRun {
+  id: string;
+  code: string;
+  triggeredBy: string;
+  sourceIds: string[];
+  sourceCodes: string[];
+  startedAt: string;
+  finishedAt: string | null;
+  status: PayItemLarkSyncRunStatus;
+  counters: {
+    created: number;
+    updated: number;
+    unchanged: number;
+    skipped: number;
+    errors: number;
+  };
+  requestId: string | null;
+}
+
+export interface PayItemLarkSyncRow {
+  id: string;
+  runId: string;
+  larkDataSourceId: string;
+  sourceCode: string;
+  outcome: PayItemLarkSyncRowOutcome;
+  employeeCode: string | null;
+  employeeId: string | null;
+  payItemTypeCode: string | null;
+  payItemId: string | null;
+  larkBaseRecordId: string | null;
+  larkApprovalInstanceId: string | null;
+  amount: string | null;
+  hours: string | null;
+  occurredOn: string | null;
+  message: string | null;
+  createdAt: string | null;
+}
+
+export interface PayItemLarkSyncRunDetail {
+  run: PayItemLarkSyncRun;
+  rows: {
+    total: number;
+    page: number;
+    pageSize: number;
+    items: PayItemLarkSyncRow[];
+  };
 }
 
 export interface LarkDataSourceUpsert {

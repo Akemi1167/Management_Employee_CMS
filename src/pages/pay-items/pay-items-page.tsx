@@ -47,7 +47,7 @@ export function PayItemsPage() {
   const [searchParams] = useSearchParams();
   const [period, setPeriod] = useState(searchParams.get('period') || currentPeriod());
   const [status, setStatus] = useState('');
-  const [source, setSource] = useState('');
+  const [source, setSource] = useState(searchParams.get('source') ?? '');
   const [employeeCode, setEmployeeCode] = useState(searchParams.get('employeeCode') ?? '');
   const [page, setPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
@@ -179,6 +179,29 @@ export function PayItemsPage() {
         header: t('payItems.source'),
         render: (row) => t(`payItemSource.${row.source}`),
       },
+      ...(source === 'LARK_BASE'
+        ? ([
+            {
+              key: 'larkDataSourceName',
+              header: t('payItems.larkSource'),
+              render: (row: PayItem) => row.larkDataSourceName || row.larkDataSourceId || '—',
+            },
+            {
+              key: 'larkBaseRecordId',
+              header: t('payItems.larkRecord'),
+              render: (row: PayItem) => (
+                <span className="font-mono text-xs">{row.larkBaseRecordId || '—'}</span>
+              ),
+            },
+            {
+              key: 'larkApprovalInstanceId',
+              header: t('payItems.larkApproval'),
+              render: (row: PayItem) => (
+                <span className="font-mono text-xs">{row.larkApprovalInstanceId || '—'}</span>
+              ),
+            },
+          ] as Column<PayItem>[])
+        : []),
       {
         key: 'status',
         header: t('common.status'),
@@ -221,7 +244,7 @@ export function PayItemsPage() {
         ),
       },
     ],
-    [canApprove, canWrite, submit, t],
+    [canApprove, canWrite, source, submit, t],
   );
 
   return (

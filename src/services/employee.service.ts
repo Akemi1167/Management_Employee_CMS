@@ -6,6 +6,7 @@ import type {
   EmployeePortalAccount,
   EmployeeWalletImportResult,
   Paginated,
+  PayItem,
 } from '@/types/api';
 
 export const WALLET_PLATFORMS = ['BINANCE', 'OTHER'] as const;
@@ -22,6 +23,12 @@ export function fetchEmployees(params: Record<string, unknown>) {
 
 export function fetchEmployee(id: string) {
   return apiGet<Employee>(`${API_ENDPOINTS.EMPLOYEES}/${id}`);
+}
+
+export function fetchEmployeeLarkPayItems(id: string, period?: string) {
+  return apiGet<{ items: PayItem[] }>(`${API_ENDPOINTS.EMPLOYEES}/${id}/lark-pay-items`, {
+    period: period || undefined,
+  });
 }
 
 export function createEmployee(body: {
@@ -80,6 +87,7 @@ export function updateEmployee(
     hiredAt?: string;
     employmentStatus?: string;
     payrollProcess?: string;
+    payrollPolicyCode?: string | null;
     terminatedAt?: string | null;
     reason: string;
   },

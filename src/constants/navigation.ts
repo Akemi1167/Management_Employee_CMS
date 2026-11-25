@@ -10,6 +10,7 @@ import {
   Lock,
   MapPin,
   ScrollText,
+  Layers,
   Settings2,
   ShieldCheck,
   Table2,
@@ -127,6 +128,12 @@ export const NAVIGATION: NavGroup[] = [
         icon: Settings2,
         permission: PERMISSION.PAYITEM_READ,
       },
+      {
+        labelKey: 'nav.payrollPolicies',
+        to: '/payroll-policies',
+        icon: Layers,
+        permission: PERMISSION.PAYITEM_READ,
+      },
     ],
   },
   {
@@ -215,6 +222,7 @@ export const PATH_PERMISSIONS: Array<{ match: string; permission?: string; permi
   { match: '/payroll', permission: PERMISSION.PAYROLL_READ },
   { match: '/pay-items/types', permission: PERMISSION.PAYITEM_READ },
   { match: '/pay-items', permission: PERMISSION.PAYITEM_READ },
+  { match: '/payroll-policies', permission: PERMISSION.PAYITEM_READ },
   { match: '/period-overview', permission: PERMISSION.ATTENDANCE_READ },
   { match: '/approvals', permission: PERMISSION.DATA_APPROVE },
   {
@@ -324,6 +332,14 @@ export const API_MODULES: ApiModuleCard[] = [
     id: 'payItemTypes',
     labelKey: 'nav.payItemTypes',
     to: '/pay-items/types',
+    status: 'live',
+    permission: PERMISSION.PAYITEM_READ,
+    rolesKey: 'dashboard.roles.dataEntry',
+  },
+  {
+    id: 'payrollPolicies',
+    labelKey: 'nav.payrollPolicies',
+    to: '/payroll-policies',
     status: 'live',
     permission: PERMISSION.PAYITEM_READ,
     rolesKey: 'dashboard.roles.dataEntry',

@@ -33,7 +33,12 @@ import {
   testLarkDataSource,
   updateLarkDataSource,
 } from '@/services/lark-data-source.service';
-import { fetchPayItemTypes, syncLarkPayItems } from '@/services/pay-item.service';
+import {
+  fetchLarkPayItemSyncRun,
+  fetchLarkPayItemSyncRuns,
+  fetchPayItemTypes,
+  syncLarkPayItems,
+} from '@/services/pay-item.service';
 import { useAuthStore } from '@/stores/auth-store';
 import type {
   LarkAppSettings,
@@ -43,6 +48,9 @@ import type {
   LarkInspectResult,
   LarkPayItemSyncResult,
   LarkPreviewResult,
+  PayItemLarkSyncRow,
+  PayItemLarkSyncRowOutcome,
+  PayItemLarkSyncRun,
   PayItemType,
   PayrollComponentCode,
 } from '@/types/api';
@@ -184,12 +192,15 @@ export function LarkDataSourcesPage() {
   const queryClient = useQueryClient();
   const canWrite = useAuthStore((s) => s.hasPermission(PERMISSION.LARK_DATASOURCE_WRITE));
   const canSyncPayItems = useAuthStore((s) => s.hasPermission(PERMISSION.PAYITEM_WRITE));
+  const canReadPayItems = useAuthStore((s) => s.hasPermission(PERMISSION.PAYITEM_READ));
   const [form, setForm] = useState<SourceForm | null>(null);
   const [inspect, setInspect] = useState<LarkInspectResult | null>(null);
   const [preview, setPreview] = useState<LarkPreviewResult | null>(null);
   const [pendingDelete, setPendingDelete] = useState<LarkDataSource | null>(null);
   const [appForm, setAppForm] = useState<AppSettingsForm | null>(null);
   const [syncResult, setSyncResult] = useState<LarkPayItemSyncResult | null>(null);
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  const [runOutcomeFilter, setRunOutcomeFilter] = useState('');
 
   const list = useQuery({
     queryKey: ['lark-data-sources'],
@@ -206,6 +217,23 @@ export function LarkDataSourcesPage() {
     queryFn: fetchPayItemTypes,
   });
 
+  const syncRuns = useQuery({
+    queryKey: ['lark-pay-item-sync-runs'],
+    queryFn: () => fetchLarkPayItemSyncRuns(30),
+    enabled: canReadPayItems,
+  });
+
+  const syncRunDetail = useQuery({
+    queryKey: ['lark-pay-item-sync-run', selectedRunId, runOutcomeFilter],
+    queryFn: () =>
+      fetchLarkPayItemSyncRun(selectedRunId!, {
+        outcome: runOutcomeFilter || undefined,
+        page: 1,
+        pageSize: 100,
+      }),
+    enabled: Boolean(selectedRunId) && canReadPayItems,
+  });
+
   const bindableTypes = useMemo(
     () => (payItemTypes.data?.items ?? []).filter(isLarkBindableType),
     [payItemTypes.data?.items],
@@ -215,6 +243,7 @@ export function LarkDataSourcesPage() {
     void queryClient.invalidateQueries({ queryKey: ['lark-data-sources'] });
     void queryClient.invalidateQueries({ queryKey: ['lark-app-settings'] });
     void queryClient.invalidateQueries({ queryKey: ['pay-items'] });
+    void queryClient.invalidateQueries({ queryKey: ['lark-pay-item-sync-runs'] });
   };
 
   const syncedAppForm =
@@ -343,6 +372,58 @@ export function LarkDataSourcesPage() {
       toast.error(getApiErrorMessage(error), { id: 'lark-source-sync', duration: 10_000 });
     },
   });
+
+  const syncRunColumns: Column<PayItemLarkSyncRun>[] = useMemo(
+    () => [
+      { key: 'code', header: t('larkSources.syncRunCode') },
+      {
+        key: 'startedAt',
+        header: t('larkSources.syncRunStarted'),
+        render: (row) => formatDate(row.startedAt),
+      },
+      {
+        key: 'status',
+        header: t('common.status'),
+        render: (row) => t(`larkSources.syncRunStatus.${row.status}`),
+      },
+      {
+        key: 'sourceCodes',
+        header: t('larkSources.syncRunSources'),
+        render: (row) => row.sourceCodes.join(', ') || '—',
+      },
+      {
+        key: 'counters',
+        header: t('larkSources.syncRunCounters'),
+        render: (row) =>
+          `${row.counters.created}/${row.counters.updated}/${row.counters.skipped}/${row.counters.errors}`,
+      },
+    ],
+    [t],
+  );
+
+  const syncRowColumns: Column<PayItemLarkSyncRow>[] = useMemo(
+    () => [
+      {
+        key: 'outcome',
+        header: t('larkSources.syncRowOutcome'),
+        render: (row) => t(`larkSources.syncOutcomes.${row.outcome}`),
+      },
+      { key: 'employeeCode', header: t('employees.code'), render: (row) => row.employeeCode || '—' },
+      { key: 'payItemTypeCode', header: t('payItems.type'), render: (row) => row.payItemTypeCode || '—' },
+      { key: 'sourceCode', header: t('larkSources.syncRunSources') },
+      {
+        key: 'amount',
+        header: t('payItems.amount'),
+        render: (row) => row.amount || row.hours || '—',
+      },
+      {
+        key: 'message',
+        header: t('larkSources.syncRowMessage'),
+        render: (row) => row.message || '—',
+      },
+    ],
+    [t],
+  );
 
   const columns: Column<LarkDataSource>[] = useMemo(
     () => [
@@ -497,6 +578,25 @@ export function LarkDataSourcesPage() {
         loading={list.isLoading}
         onRowClick={(row) => { setForm(fromSource(row)); setInspect(null); }}
       />
+
+      {canReadPayItems ? (
+        <div className={cn(cardClass, 'mt-6 space-y-3 p-4')}>
+          <div>
+            <p className="text-sm font-medium">{t('larkSources.syncHistoryTitle')}</p>
+            <p className={cn('text-sm', textSubtle)}>{t('larkSources.syncHistoryHint')}</p>
+          </div>
+          <DataTable
+            columns={syncRunColumns}
+            data={syncRuns.data?.items ?? []}
+            loading={syncRuns.isLoading}
+            emptyMessage={t('larkSources.syncHistoryEmpty')}
+            onRowClick={(row) => {
+              setRunOutcomeFilter('');
+              setSelectedRunId(row.id);
+            }}
+          />
+        </div>
+      ) : null}
 
       <Dialog
         open={Boolean(form)}
@@ -705,12 +805,86 @@ export function LarkDataSourcesPage() {
         title={t('larkSources.syncResultTitle')}
         className="max-w-lg"
         footer={
-          <Button type="button" onClick={() => setSyncResult(null)}>
+          <div className="flex flex-wrap gap-2">
+            {syncResult?.runId ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setSelectedRunId(syncResult.runId!);
+                  setSyncResult(null);
+                }}
+              >
+                {t('larkSources.openSyncRun')}
+              </Button>
+            ) : null}
+            <Button type="button" onClick={() => setSyncResult(null)}>
+              {t('common.close')}
+            </Button>
+          </div>
+        }
+      >
+        {syncResult ? <LarkSyncResultView result={syncResult} /> : null}
+      </Dialog>
+
+      <Dialog
+        open={Boolean(selectedRunId)}
+        onClose={() => setSelectedRunId(null)}
+        title={t('larkSources.syncRunDetailTitle')}
+        className="max-w-4xl"
+        footer={
+          <Button type="button" onClick={() => setSelectedRunId(null)}>
             {t('common.close')}
           </Button>
         }
       >
-        {syncResult ? <LarkSyncResultView result={syncResult} /> : null}
+        {syncRunDetail.data ? (
+          <div className="space-y-4">
+            <div className="grid gap-2 text-sm sm:grid-cols-2">
+              <p>
+                <span className={textSubtle}>{t('larkSources.syncRunCode')}: </span>
+                {syncRunDetail.data.run.code}
+              </p>
+              <p>
+                <span className={textSubtle}>{t('common.status')}: </span>
+                {t(`larkSources.syncRunStatus.${syncRunDetail.data.run.status}`)}
+              </p>
+              <p>
+                <span className={textSubtle}>{t('larkSources.syncRunStarted')}: </span>
+                {formatDate(syncRunDetail.data.run.startedAt)}
+              </p>
+              <p>
+                <span className={textSubtle}>{t('larkSources.syncRunCounters')}: </span>
+                {`${syncRunDetail.data.run.counters.created}/${syncRunDetail.data.run.counters.updated}/${syncRunDetail.data.run.counters.skipped}/${syncRunDetail.data.run.counters.errors}`}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Label>{t('larkSources.syncRowOutcome')}</Label>
+              <Select
+                value={runOutcomeFilter}
+                onChange={(event) => setRunOutcomeFilter(event.target.value)}
+              >
+                <option value="">{t('common.all')}</option>
+                {(['created', 'updated', 'unchanged', 'skipped', 'error'] as PayItemLarkSyncRowOutcome[]).map(
+                  (outcome) => (
+                    <option key={outcome} value={outcome}>
+                      {t(`larkSources.syncOutcomes.${outcome}`)}
+                    </option>
+                  ),
+                )}
+              </Select>
+            </div>
+            <DataTable
+              columns={syncRowColumns}
+              data={syncRunDetail.data.rows.items}
+              loading={syncRunDetail.isLoading}
+              emptyMessage={t('common.noData')}
+              count={syncRunDetail.data.rows.total}
+            />
+          </div>
+        ) : (
+          <p className={cn('text-sm', textSubtle)}>{t('common.loading')}</p>
+        )}
       </Dialog>
 
       <Dialog
@@ -757,6 +931,25 @@ function LarkSyncResultView({ result }: { result: LarkPayItemSyncResult }) {
   return (
     <div className="space-y-4">
       <p className={cn('text-sm', textSubtle)}>{t('larkSources.syncResultHint')}</p>
+      {result.runId || result.code || result.status ? (
+        <div className="rounded-lg border border-[#2a3040] bg-[#1a1e28]/60 px-3 py-2 text-sm">
+          {result.code ? (
+            <p>
+              <span className={textSubtle}>{t('larkSources.syncRunCode')}: </span>
+              <span className="font-mono">{result.code}</span>
+            </p>
+          ) : null}
+          {result.status ? (
+            <p>
+              <span className={textSubtle}>{t('common.status')}: </span>
+              {t(`larkSources.syncRunStatus.${result.status}`)}
+            </p>
+          ) : null}
+          {result.runId ? (
+            <p className="font-mono text-xs text-[#9aa3b5]">{result.runId}</p>
+          ) : null}
+        </div>
+      ) : null}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {cards.map((card) => (
           <div

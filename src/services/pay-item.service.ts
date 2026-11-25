@@ -5,6 +5,8 @@ import type {
   Paginated,
   PayItem,
   PayItemImportResult,
+  PayItemLarkSyncRun,
+  PayItemLarkSyncRunDetail,
   PayItemReconcile,
   PayItemType,
   PayItemUnit,
@@ -96,6 +98,19 @@ export async function syncLarkPayItems(sourceId?: string) {
     { timeout: 180_000 },
   );
   return data;
+}
+
+export function fetchLarkPayItemSyncRuns(limit = 30) {
+  return apiGet<{ items: PayItemLarkSyncRun[] }>(`${API_ENDPOINTS.PAY_ITEMS}/lark-sync-runs`, {
+    limit,
+  });
+}
+
+export function fetchLarkPayItemSyncRun(
+  id: string,
+  params?: { outcome?: string; employeeCode?: string; page?: number; pageSize?: number },
+) {
+  return apiGet<PayItemLarkSyncRunDetail>(`${API_ENDPOINTS.PAY_ITEMS}/lark-sync-runs/${id}`, params);
 }
 
 export function fetchPayItemReconcile(period: string) {

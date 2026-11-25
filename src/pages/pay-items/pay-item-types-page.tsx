@@ -153,6 +153,9 @@ export function PayItemTypesPage() {
             <Button variant="outline" asChild>
               <Link to="/pay-items">{t('nav.payItems')}</Link>
             </Button>
+            <Button variant="outline" asChild>
+              <Link to="/payroll-policies">{t('nav.payrollPolicies')}</Link>
+            </Button>
             {canWrite ? (
               <CreateButton onClick={() => setForm(emptyForm())}>{t('payItemTypes.create')}</CreateButton>
             ) : null}

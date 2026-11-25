@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { CalendarCheck, ClipboardList, CreditCard, KeyRound, Pencil, Trash2, Wallet } from 'lucide-react';
+import { CalendarCheck, ClipboardList, CreditCard, FileText, KeyRound, Pencil, Trash2, Wallet } from 'lucide-react';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { DataTable, type Column } from '@/components/shared/data-table';
@@ -25,6 +25,7 @@ import { hasAssignedWallet } from '@/lib/wallet-workflow';
 import {
   deleteEmployee,
   fetchEmployee,
+  fetchEmployeeLarkPayItems,
   fetchEmployeeWalletImage,
   provisionEmployeePortal,
   resetEmployeePortalPassword,
@@ -39,6 +40,7 @@ import {
   type WalletPlatform,
 } from '@/services/employee.service';
 import { fetchAttendance, fetchPayroll, fetchPenalties } from '@/services/hr-records.service';
+import { fetchPayrollPolicies, resolvePayrollPolicy } from '@/services/payroll-policy.service';
 import { fetchUsers } from '@/services/user.service';
 import { useAuthStore } from '@/stores/auth-store';
 import type {
@@ -46,6 +48,7 @@ import type {
   Employee,
   EmployeePortalAccount,
   Paginated,
+  PayItem,
   PayrollRecord,
   PenaltyRecord,
 } from '@/types/api';
@@ -208,6 +211,13 @@ export function EmployeeDetailPage() {
             <p className="mt-3 text-xs text-[#9aa3b5]">{t('source.hint')}</p>
           </div>
 
+          {has(PERMISSION.PAYITEM_READ) ? (
+            <EmployeeLarkPayItemsPanel
+              employeeId={id}
+              employeeCode={data.employeeCode}
+              period={period}
+            />
+          ) : null}
           {has(PERMISSION.ATTENDANCE_READ) ? (
             <EmployeeAttendancePanel employeeId={id} period={period} openTo={listTo('/attendance')} />
           ) : null}
@@ -257,6 +267,20 @@ function EmployeeProfileCard({ employee }: { employee: Employee }) {
   const [hiredAt, setHiredAt] = useState(toDateInput(employee.hiredAt));
   const [employmentStatus, setEmploymentStatus] = useState(employee.employmentStatus);
   const [payrollProcess, setPayrollProcess] = useState<string>(employee.payrollProcess ?? 'INTERNAL');
+  const [payrollPolicyCode, setPayrollPolicyCode] = useState(
+    employee.payrollPolicyLocked && employee.payrollPolicyCode ? employee.payrollPolicyCode : '',
+  );
+  const canReadPolicies = useAuthStore((s) => s.hasPermission(PERMISSION.PAYITEM_READ));
+  const policies = useQuery({
+    queryKey: ['payroll-policies'],
+    queryFn: fetchPayrollPolicies,
+    enabled: canReadPolicies,
+  });
+  const resolvedPolicy = useQuery({
+    queryKey: ['payroll-policy-resolve', employee.id],
+    queryFn: () => resolvePayrollPolicy({ employeeId: employee.id }),
+    enabled: canReadPolicies,
+  });
   const [terminatedAt, setTerminatedAt] = useState(toDateInput(employee.terminatedAt));
   const [reason, setReason] = useState('');
   const [deleteReason, setDeleteReason] = useState('');
@@ -273,6 +297,9 @@ function EmployeeProfileCard({ employee }: { employee: Employee }) {
     setHiredAt(toDateInput(employee.hiredAt));
     setEmploymentStatus(employee.employmentStatus);
     setPayrollProcess(employee.payrollProcess ?? 'INTERNAL');
+    setPayrollPolicyCode(
+      employee.payrollPolicyLocked && employee.payrollPolicyCode ? employee.payrollPolicyCode : '',
+    );
     setTerminatedAt(toDateInput(employee.terminatedAt));
   }, [employee]);
 
@@ -318,6 +345,11 @@ function EmployeeProfileCard({ employee }: { employee: Employee }) {
       payrollProcess,
       reason: reason.trim(),
     };
+    const nextPolicy = payrollPolicyCode.trim() || null;
+    const currentPolicy = employee.payrollPolicyLocked ? employee.payrollPolicyCode ?? null : null;
+    if (nextPolicy !== currentPolicy) {
+      body.payrollPolicyCode = nextPolicy;
+    }
     if (employmentStatus === 'TERMINATED') {
       if (terminatedIso) body.terminatedAt = terminatedIso;
     } else {
@@ -338,6 +370,7 @@ function EmployeeProfileCard({ employee }: { employee: Employee }) {
       setConfirmKind(null);
       toast.success(t('employees.profileSaved'));
       void queryClient.invalidateQueries({ queryKey: ['employee', employee.id] });
+      void queryClient.invalidateQueries({ queryKey: ['payroll-policy-resolve', employee.id] });
     },
     onError: (error) =>
       runOrStepUp(error, () =>
@@ -430,6 +463,22 @@ function EmployeeProfileCard({ employee }: { employee: Employee }) {
           <StatusBadge value={employee.payrollProcess ?? 'INTERNAL'} ns="payrollProcess" />
         </div>
         <div>
+          <p className="text-[11px] uppercase text-[#9aa3b5]">{t('employees.payrollPolicy')}</p>
+          {resolvedPolicy.data?.policy ? (
+            <Link
+              to={`/payroll-policies/${resolvedPolicy.data.policy.id}`}
+              className="text-sm text-[#4ade80] hover:underline"
+            >
+              {resolvedPolicy.data.policy.code} · {resolvedPolicy.data.policy.name}
+            </Link>
+          ) : (
+            <p className="text-sm">{employee.payrollPolicyCode || t('employees.payrollPolicyNone')}</p>
+          )}
+          <p className={`text-[11px] ${textSubtle}`}>
+            {t(`payrollPolicySource.${resolvedPolicy.data?.source ?? 'NONE'}`)}
+          </p>
+        </div>
+        <div>
           <p className="text-[11px] uppercase text-[#9aa3b5]">LARK</p>
           <StatusBadge value={employee.larkSyncStatus} ns="larkStatus" />
         </div>
@@ -486,6 +535,20 @@ function EmployeeProfileCard({ employee }: { employee: Employee }) {
                 <option value="INTERNAL">{t('payrollProcess.INTERNAL')}</option>
                 <option value="LARK">{t('payrollProcess.LARK')}</option>
               </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('employees.payrollPolicy')}</Label>
+              <Select value={payrollPolicyCode} onChange={(e) => setPayrollPolicyCode(e.target.value)}>
+                <option value="">{t('employees.payrollPolicyFollowDept')}</option>
+                {(policies.data?.items ?? [])
+                  .filter((policy) => policy.enabled || policy.code === payrollPolicyCode)
+                  .map((policy) => (
+                    <option key={policy.code} value={policy.code}>
+                      {policy.code} · {policy.name}
+                    </option>
+                  ))}
+              </Select>
+              <p className={`text-[10px] ${textSubtle}`}>{t('employees.payrollPolicyHint')}</p>
             </div>
             {employmentStatus === 'TERMINATED' ? (
               <div className="space-y-1.5">
@@ -1078,6 +1141,76 @@ function sourceColumn<T extends { source: 'staging' | 'published' }>(
     sortValue: (row) => t(`source.${row.source}`),
     render: (row) => t(`source.${row.source}`),
   };
+}
+
+function EmployeeLarkPayItemsPanel({
+  employeeId,
+  employeeCode,
+  period,
+}: {
+  employeeId: string;
+  employeeCode: string;
+  period: string;
+}) {
+  const { t } = useTranslation();
+  const openTo = `/pay-items?employeeCode=${encodeURIComponent(employeeCode)}&source=LARK_BASE${
+    period ? `&period=${period}` : ''
+  }`;
+  const list = useQuery({
+    queryKey: ['employee-lark-pay-items', employeeId, period],
+    queryFn: () => fetchEmployeeLarkPayItems(employeeId, period || undefined),
+  });
+  const columns: Column<PayItem>[] = [
+    { key: 'period', header: t('common.period') },
+    { key: 'payItemTypeCode', header: t('payItems.type') },
+    {
+      key: 'occurredOn',
+      header: t('payItems.occurredOn'),
+      render: (row) => formatDay(row.occurredOn),
+    },
+    { key: 'hours', header: t('payItems.hours'), render: (row) => row.hours || '—' },
+    { key: 'amount', header: t('payItems.amount'), render: (row) => moneyText(row.amount) },
+    {
+      key: 'status',
+      header: t('common.status'),
+      render: (row) => <StatusBadge value={row.status} ns="payItemStatus" />,
+    },
+    {
+      key: 'larkDataSourceName',
+      header: t('employees.larkPayItems.source'),
+      render: (row) => row.larkDataSourceName || '—',
+    },
+    {
+      key: 'larkBaseRecordId',
+      header: t('employees.larkPayItems.record'),
+      render: (row) => <span className="font-mono text-xs">{row.larkBaseRecordId || '—'}</span>,
+    },
+    {
+      key: 'larkApprovalInstanceId',
+      header: t('employees.larkPayItems.approval'),
+      render: (row) => (
+        <span className="font-mono text-xs">{row.larkApprovalInstanceId || '—'}</span>
+      ),
+    },
+  ];
+
+  return (
+    <div className="mb-4">
+      <SectionHeader
+        icon={FileText}
+        title={t('employees.larkPayItems.title')}
+        to={openTo}
+        label={t('employees.openList')}
+      />
+      <DataTable
+        columns={columns}
+        data={list.data?.items ?? []}
+        loading={list.isLoading}
+        emptyMessage={t('employees.larkPayItems.empty')}
+        count={list.data?.items.length}
+      />
+    </div>
+  );
 }
 
 function EmployeeAttendancePanel({

@@ -30,6 +30,7 @@ export const API_ENDPOINTS = {
   LARK_DATA_SOURCES: `${API_PREFIX}/lark/data-sources`,
   LARK_APP_SETTINGS: `${API_PREFIX}/lark/app-settings`,
   PAY_ITEMS: `${API_PREFIX}/pay-items`,
+  PAYROLL_POLICIES: `${API_PREFIX}/payroll-policies`,
 } as const;
 
 export const PERMISSION = {

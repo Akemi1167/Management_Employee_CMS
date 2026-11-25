@@ -23,6 +23,8 @@ import { AuditListPage } from '@/pages/audit/audit-list-page';
 import { PeriodOverviewPage } from '@/pages/reports/period-overview-page';
 import { PayItemTypesPage } from '@/pages/pay-items/pay-item-types-page';
 import { PayItemsPage } from '@/pages/pay-items/pay-items-page';
+import { PayrollPoliciesPage } from '@/pages/payroll-policies/payroll-policies-page';
+import { PayrollPolicyDetailPage } from '@/pages/payroll-policies/payroll-policy-detail-page';
 
 export function AppRoutes() {
   return (
@@ -55,6 +57,8 @@ export function AppRoutes() {
               <Route path="payroll" element={<PayrollListPage />} />
               <Route path="pay-items/types" element={<PayItemTypesPage />} />
               <Route path="pay-items" element={<PayItemsPage />} />
+              <Route path="payroll-policies" element={<PayrollPoliciesPage />} />
+              <Route path="payroll-policies/:id" element={<PayrollPolicyDetailPage />} />
               <Route path="period-overview" element={<PeriodOverviewPage />} />
               <Route path="approvals" element={<ApprovalsListPage />} />
               <Route path="publishing" element={<PublishingPage />} />

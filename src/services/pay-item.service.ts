@@ -1,4 +1,4 @@
-import { apiClient, apiGet, apiPatch, apiPost } from '@/lib/api-client';
+import { apiClient, apiDelete, apiGet, apiPatch, apiPost } from '@/lib/api-client';
 import { API_ENDPOINTS } from '@/constants/api-endpoints';
 import type {
   LarkPayItemSyncResult,
@@ -8,6 +8,7 @@ import type {
   PayItemLarkSyncRun,
   PayItemLarkSyncRunDetail,
   PayItemReconcile,
+  PayItemIntake,
   PayItemType,
   PayItemUnit,
   PayrollComponentCode,
@@ -24,6 +25,8 @@ export function createPayItemType(body: {
   label: string;
   mapsToPayrollComponent: PayrollComponentCode;
   unit?: PayItemUnit;
+  intake?: PayItemIntake;
+  defaultAmount?: string | null;
 }) {
   return apiPost<PayItemType>(`${API_ENDPOINTS.PAY_ITEMS}/types`, body);
 }
@@ -36,9 +39,15 @@ export function updatePayItemType(
     mapsToPayrollComponent?: PayrollComponentCode;
     unit?: PayItemUnit;
     enabled?: boolean;
+    intake?: PayItemIntake;
+    defaultAmount?: string | null;
   },
 ) {
   return apiPatch<PayItemType>(`${API_ENDPOINTS.PAY_ITEMS}/types/${id}`, body);
+}
+
+export function deletePayItemType(id: string) {
+  return apiDelete<{ id: string; code: string }>(`${API_ENDPOINTS.PAY_ITEMS}/types/${id}`);
 }
 
 export function fetchPayItems(params: Record<string, unknown>) {

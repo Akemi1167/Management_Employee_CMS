@@ -26,9 +26,10 @@ export function fetchEmployee(id: string) {
 }
 
 export function fetchEmployeeLarkPayItems(id: string, period?: string) {
-  return apiGet<{ items: PayItem[] }>(`${API_ENDPOINTS.EMPLOYEES}/${id}/lark-pay-items`, {
-    period: period || undefined,
-  });
+  return apiGet<{ items: PayItem[] }>(
+    `${API_ENDPOINTS.EMPLOYEES}/${id}/lark-pay-items`,
+    period?.trim() ? { period: period.trim() } : undefined,
+  );
 }
 
 export function createEmployee(body: {

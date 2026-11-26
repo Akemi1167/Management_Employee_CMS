@@ -3,11 +3,23 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { Search } from 'lucide-react';
+import {
+  Eye,
+  KeyRound,
+  MapPinned,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+  Upload,
+  UserX,
+  Wallet,
+} from 'lucide-react';
 import { PageContainer } from '@/components/layout/page-container';
 import { PageHeader } from '@/components/layout/page-header';
 import { DataTable, type Column } from '@/components/shared/data-table';
 import { EmployeeSuggestInput } from '@/components/shared/employee-suggest-input';
+import { IconActionButton, IconActionLink } from '@/components/shared/icon-action';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { StepUpDialog } from '@/components/shared/step-up-dialog';
 import { Button } from '@/components/ui/button';
@@ -199,34 +211,39 @@ export function EmployeesListPage() {
       key: 'actions',
       header: t('common.actions'),
       render: (row) => (
-        <div className="flex flex-col gap-1" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
           {canUpdate ? (
-            <Link to={`/employees/${row.id}#employee-profile`} className="text-[#4ade80] hover:underline">
-              {t('common.edit')}
-            </Link>
+            <IconActionLink
+              to={`/employees/${row.id}#employee-profile`}
+              label={t('common.edit')}
+              tone="primary"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </IconActionLink>
           ) : null}
           {canWallet && !hasAssignedWallet(row.wallet) ? (
-            <Link to={`/employees/${row.id}#employee-wallet`} className="text-[#9aa3b5] hover:underline">
-              {t('employees.assignWallet')}
-            </Link>
+            <IconActionLink
+              to={`/employees/${row.id}#employee-wallet`}
+              label={t('employees.assignWallet')}
+            >
+              <Wallet className="h-3.5 w-3.5" />
+            </IconActionLink>
           ) : null}
           {canWalletRead && hasAssignedWallet(row.wallet) ? (
-            <Link
+            <IconActionLink
               to={`/wallet?employeeCode=${encodeURIComponent(row.employeeCode)}`}
-              className="text-[#9aa3b5] hover:underline"
+              label={t('employees.viewWallet')}
             >
-              {t('employees.viewWallet')}
-            </Link>
+              <Eye className="h-3.5 w-3.5" />
+            </IconActionLink>
           ) : null}
           {canPortal ? (
-            <Link to={`/employees/${row.id}#portal-account`} className="text-[#9aa3b5] hover:underline">
-              {t('employees.setPortalPassword')}
-            </Link>
-          ) : null}
-          {canUpdate ? (
-            <Link to={`/employees/${row.id}#delete-employee`} className="text-[#f87171] hover:underline">
-              {t('employees.deleteProfile')}
-            </Link>
+            <IconActionLink
+              to={`/employees/${row.id}#portal-account`}
+              label={t('employees.setPortalPassword')}
+            >
+              <KeyRound className="h-3.5 w-3.5" />
+            </IconActionLink>
           ) : null}
         </div>
       ),
@@ -239,73 +256,97 @@ export function EmployeesListPage() {
         title={t('employees.title')}
         description={t('employees.description')}
         actions={
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-0.5">
             {canWallet ? (
-              <Button variant="outline" asChild>
-                <Link to="/employees/wallets/import">{t('employees.walletImportTitle')}</Link>
-              </Button>
+              <IconActionLink to="/employees/wallets/import" label={t('employees.walletImportTitle')}>
+                <Wallet className="h-4 w-4" />
+              </IconActionLink>
             ) : null}
-            <Button variant="outline" asChild>
-              <Link to="/regions">{t('nav.regions')}</Link>
-            </Button>
+            <IconActionLink to="/regions" label={t('nav.regions')}>
+              <MapPinned className="h-4 w-4" />
+            </IconActionLink>
             {canCreate ? (
-              <Button variant="outline" asChild>
-                <Link to="/employees/create">{t('employees.createTitle')}</Link>
-              </Button>
+              <IconActionLink to="/employees/create" label={t('employees.createTitle')} tone="primary">
+                <Plus className="h-4 w-4" />
+              </IconActionLink>
             ) : null}
             {canImport ? (
-              <Button asChild>
-                <Link to="/employees/import">{t('employees.importTitle')}</Link>
-              </Button>
+              <IconActionLink to="/employees/import" label={t('employees.importTitle')} tone="primary">
+                <Upload className="h-4 w-4" />
+              </IconActionLink>
             ) : null}
             {isAdmin ? (
-              <Button variant="destructive" onClick={() => setWipeOpen(true)}>
-                {t('employees.wipeAll')}
-              </Button>
+              <IconActionButton
+                label={t('employees.wipeAll')}
+                tone="danger"
+                onClick={() => setWipeOpen(true)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </IconActionButton>
             ) : null}
           </div>
         }
       />
-      <div className={`${cardClass} mb-4 flex flex-wrap gap-2 p-4`}>
-        <EmployeeSuggestInput
-          className="max-w-xs"
-          placeholder={t('employees.searchPlaceholder')}
-          value={query}
-          onChange={setQuery}
-          onSubmit={() => applyFilters()}
-          onSelect={(employee) => applyFilters(employmentStatus, employee.fullName)}
-        />
-        <Input
-          className="max-w-[180px]"
-          placeholder={t('employees.department')}
-          value={departmentCode}
-          onChange={(e) => setDepartmentCode(e.target.value)}
-        />
-        <Input
-          className="max-w-[140px]"
-          placeholder={t('employees.region')}
-          value={regionCode}
-          onChange={(e) => setRegionCode(e.target.value)}
-        />
-        <Select value={employmentStatus} onChange={(e) => setEmploymentStatus(e.target.value)}>
-          <option value="">{t('common.all')}</option>
-          <option value="ACTIVE">{t('employment.ACTIVE')}</option>
-          <option value="ON_LEAVE">{t('employment.ON_LEAVE')}</option>
-          <option value="SUSPENDED">{t('employment.SUSPENDED')}</option>
-          <option value="TERMINATED">{t('employment.TERMINATED')}</option>
-        </Select>
-        <Select value={payrollProcess} onChange={(e) => setPayrollProcess(e.target.value)}>
-          <option value="">{t('common.all')}</option>
-          <option value="INTERNAL">{t('payrollProcess.INTERNAL')}</option>
-          <option value="LARK">{t('payrollProcess.LARK')}</option>
-        </Select>
-        <Button onClick={() => applyFilters()}>
-          <Search className="h-4 w-4" />
-          {t('common.search')}
-        </Button>
-        <Button variant="outline" onClick={() => applyFilters('TERMINATED')}>
-          {t('employees.filterTerminated')}
-        </Button>
+      <div className={`${cardClass} mb-3 p-3`}>
+        <div className="flex flex-wrap items-center gap-2">
+          <EmployeeSuggestInput
+            className="min-w-[200px] flex-1 basis-[220px] sm:max-w-[280px]"
+            placeholder={t('employees.searchPlaceholder')}
+            value={query}
+            onChange={setQuery}
+            onSubmit={() => applyFilters()}
+            onSelect={(employee) => applyFilters(employmentStatus, employee.fullName)}
+          />
+          <Input
+            className="w-[140px] shrink-0"
+            placeholder={t('employees.department')}
+            value={departmentCode}
+            onChange={(e) => setDepartmentCode(e.target.value)}
+          />
+          <Input
+            className="w-[110px] shrink-0"
+            placeholder={t('employees.region')}
+            value={regionCode}
+            onChange={(e) => setRegionCode(e.target.value)}
+          />
+          <Select
+            className="w-[150px] shrink-0"
+            value={employmentStatus}
+            onChange={(e) => setEmploymentStatus(e.target.value)}
+            aria-label={t('common.status')}
+          >
+            <option value="">{t('common.all')}</option>
+            <option value="ACTIVE">{t('employment.ACTIVE')}</option>
+            <option value="ON_LEAVE">{t('employment.ON_LEAVE')}</option>
+            <option value="SUSPENDED">{t('employment.SUSPENDED')}</option>
+            <option value="TERMINATED">{t('employment.TERMINATED')}</option>
+          </Select>
+          <Select
+            className="w-[150px] shrink-0"
+            value={payrollProcess}
+            onChange={(e) => setPayrollProcess(e.target.value)}
+            aria-label={t('employees.payrollProcess')}
+          >
+            <option value="">{t('common.all')}</option>
+            <option value="INTERNAL">{t('payrollProcess.INTERNAL')}</option>
+            <option value="LARK">{t('payrollProcess.LARK')}</option>
+          </Select>
+          <div className="flex shrink-0 items-center gap-2">
+            <Button type="button" size="sm" onClick={() => applyFilters()}>
+              <Search className="h-4 w-4" />
+              {t('common.search')}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => applyFilters('TERMINATED')}
+            >
+              <UserX className="h-4 w-4" />
+              {t('employees.filterTerminated')}
+            </Button>
+          </div>
+        </div>
       </div>
       <DataTable
         columns={columns}

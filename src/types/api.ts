@@ -624,6 +624,8 @@ export interface LarkDataSource {
   range: string | null;
   fieldMap: Record<string, string> | null;
   defaultPayItemTypeCode: string | null;
+  /** EMPLOYEE: tự cập nhật TERMINATED khi Base báo đã nghỉ và CMS đã có hồ sơ. */
+  syncApplyTerminated: boolean;
   lastTestedAt: string | null;
   lastTestOk: boolean;
   lastTestMessage: string | null;
@@ -643,6 +645,7 @@ export interface LarkInspectResult {
   tables: Array<{ id: string; name: string }>;
   sheets: Array<{ id: string; title: string; index: number }>;
   fields: Array<{ id: string; name: string; type: string }>;
+  suggestedFieldMap?: Record<string, string>;
 }
 
 export interface LarkPreviewResult {
@@ -694,6 +697,8 @@ export type PayrollComponentCode =
   | 'ADJUSTMENT'
   | 'OTHER';
 export type PayItemUnit = 'HOURS' | 'AMOUNT' | 'BOTH';
+/** POLICY = CMS policy calc; MANUAL = CMS/Excel entry; LARK = requires Base form sync. */
+export type PayItemIntake = 'POLICY' | 'MANUAL' | 'LARK';
 
 export interface PayItemType {
   id: string;
@@ -703,6 +708,9 @@ export interface PayItemType {
   enabled: boolean;
   mapsToPayrollComponent: PayrollComponentCode;
   unit: PayItemUnit;
+  intake: PayItemIntake;
+  /** Preset amount when Lark Base has no money column; only applied on approved Lark sync. */
+  defaultAmount: string | null;
 }
 
 export type PayrollPolicyItemGroup = 'SALARY' | 'BENEFIT' | 'RELOCATION' | 'DEDUCTION';
@@ -825,6 +833,18 @@ export interface LarkPayItemSyncResult {
   unchanged: number;
   skipped: number;
   errors: string[];
+  employeeSync?: {
+    ran: boolean;
+    reason?: string | null;
+    created: number;
+    updated: number;
+    terminated?: number;
+    unchanged: number;
+    skipped: number;
+    portalAccountsCreated: number;
+    errors: string[];
+    sessionId?: string | null;
+  };
 }
 
 export interface PayItemLarkSyncRun {
@@ -890,6 +910,7 @@ export interface LarkDataSourceUpsert {
   range?: string;
   fieldMap?: Record<string, string>;
   defaultPayItemTypeCode?: string | null;
+  syncApplyTerminated?: boolean;
 }
 
 export interface AuditEvent {

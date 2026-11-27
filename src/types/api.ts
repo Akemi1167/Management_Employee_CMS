@@ -155,6 +155,10 @@ export interface Employee {
   payrollPolicyLocked?: boolean;
   hiredAt: string;
   terminatedAt: string | null;
+  baseSalary?: string | null;
+  probationSalary?: string | null;
+  confirmedSalary?: string | null;
+  raiseMax?: string | null;
   larkSyncStatus: string | null;
   wallet: {
     addressMasked: string | null;
@@ -720,6 +724,7 @@ export type PayrollPolicyAnchor =
   | 'DEMOTION_OR_HIRED'
   | 'RELOCATED_AT'
   | 'CONFIRMATION'
+  | 'PROBATION_SALARY'
   | 'PROMOTION'
   | 'DEMOTION'
   | 'FORM'

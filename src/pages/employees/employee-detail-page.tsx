@@ -31,7 +31,14 @@ import { cardClass, textSubtle } from '@/constants/theme';
 import { PERMISSION } from '@/constants/api-endpoints';
 import { getApiErrorCode, getApiErrorMessage, moneyText } from '@/lib/api-client';
 import { managersByRegion } from '@/lib/region-managers';
-import { dateInputToIso, formatDate, formatDay, toDateInput } from '@/lib/period';
+import {
+  currentPeriod,
+  dateInputToIso,
+  formatDate,
+  formatDay,
+  toDateInput,
+} from '@/lib/period';
+import { estimateProvisionalPayroll } from '@/lib/provisional-payroll';
 import { hasAssignedWallet } from '@/lib/wallet-workflow';
 import {
   deleteEmployee,
@@ -251,10 +258,12 @@ export function EmployeeDetailPage() {
                 }
                 setTab(next);
               }}
+              onPeriodChange={(value) => update({ period: value })}
               canEdit={has(PERMISSION.EMPLOYEE_UPDATE)}
               canWallet={has(PERMISSION.WALLET_READ) || has(PERMISSION.WALLET_WRITE)}
               canComplaints={has(PERMISSION.COMPLAINT_READ)}
               canPayItems={has(PERMISSION.PAYITEM_READ)}
+              canAttendance={has(PERMISSION.ATTENDANCE_READ)}
               canRecords={visibleTabs.includes('records')}
               period={period}
             />
@@ -362,6 +371,10 @@ function EmployeeHeroSummary({ employee }: { employee: Employee }) {
         <Field label={t('employees.region')} value={employee.regionCode || '—'} />
         <Field label={t('employees.position')} value={employee.position || '—'} />
         <Field label={t('employees.hiredAt')} value={formatDay(employee.hiredAt)} />
+        <Field label={t('employees.baseSalary')} value={moneyText(employee.baseSalary)} />
+        <Field label={t('employees.probationSalary')} value={moneyText(employee.probationSalary)} />
+        <Field label={t('employees.confirmedSalary')} value={moneyText(employee.confirmedSalary)} />
+        <Field label={t('employees.raiseMax')} value={moneyText(employee.raiseMax)} />
       </div>
     </div>
   );
@@ -371,20 +384,24 @@ function EmployeeOverviewPanel({
   employee,
   employeeId,
   onOpenTab,
+  onPeriodChange,
   canEdit,
   canWallet,
   canComplaints,
   canPayItems,
+  canAttendance,
   canRecords,
   period,
 }: {
   employee: Employee;
   employeeId: string;
   onOpenTab: (tab: EmployeeTab) => void;
+  onPeriodChange: (period: string) => void;
   canEdit: boolean;
   canWallet: boolean;
   canComplaints: boolean;
   canPayItems: boolean;
+  canAttendance: boolean;
   canRecords: boolean;
   period: string;
 }) {
@@ -404,25 +421,177 @@ function EmployeeOverviewPanel({
     queryFn: () => fetchEmployeeLarkPayItems(employeeId),
     enabled: Boolean(employeeId) && canRecords,
   });
+  const policyResolve = useQuery({
+    queryKey: ['payroll-policy-resolve', employeeId],
+    queryFn: () => resolvePayrollPolicy({ employeeId }),
+    enabled: Boolean(employeeId) && canPayItems,
+  });
+  /** Overview khong bat buoc chon ky — mac dinh thang hien tai de luon hien luong tam tinh. */
+  const estimatePeriod = period || currentPeriod();
+  const attendance = useQuery({
+    queryKey: ['employee-attendance-overview', employeeId, estimatePeriod],
+    queryFn: () =>
+      fetchAttendance({
+        employeeId,
+        period: estimatePeriod,
+        page: 1,
+        pageSize: 5,
+        source: 'published',
+      }),
+    enabled: Boolean(employeeId) && Boolean(estimatePeriod) && canAttendance,
+  });
   const allLark = larkItems.data?.items ?? [];
-  const larkTotal = useMemo(
-    () => allLark.reduce((sum, item) => sum + payItemAmountNumber(item.amount), 0),
-    [allLark],
+  const attendanceRow = attendance.data?.items?.[0];
+  const provisional = useMemo(
+    () =>
+      estimateProvisionalPayroll({
+        period: estimatePeriod,
+        baseSalary: employee.baseSalary,
+        workHoursPerDay: policyResolve.data?.policy?.workHoursPerDay ?? 9,
+        actualWorkedDays:
+          attendanceRow?.actualWorkedDays ?? attendanceRow?.summary?.actualWorkedDays,
+        periodWorkingDays:
+          attendanceRow?.periodWorkingDays ?? attendanceRow?.summary?.periodWorkingDays,
+        items: allLark,
+      }),
+    [
+      estimatePeriod,
+      employee.baseSalary,
+      policyResolve.data?.policy?.workHoursPerDay,
+      attendanceRow,
+      allLark,
+    ],
+  );
+  /**
+   * Luong co ban lay tu ho so ca nhan (employee.baseSalary) — khong cong tu dong Lark.
+   * Muc tong Lark chi gom khoan phat/hoa hong/tang ca…, loai het fan-out don luong.
+   */
+  const salaryProfileTypes = useMemo(
+    () => new Set(['BASE_SALARY', 'PROBATION_SALARY', 'CONFIRMATION', 'RAISE_6M']),
+    [],
+  );
+  const larkForTotals = useMemo(
+    () =>
+      allLark.filter((item) => {
+        if (item.duplicateOfId) return false;
+        if ((item.status || '').toUpperCase() === 'REJECTED') return false;
+        const code = (item.payItemTypeCode || '').toUpperCase();
+        return !salaryProfileTypes.has(code);
+      }),
+    [allLark, salaryProfileTypes],
+  );
+  const larkMoneyTotal = useMemo(
+    () =>
+      larkForTotals.reduce((sum, item) => {
+        if (isOvertimePayItemCode(item.payItemTypeCode)) return sum;
+        return sum + payItemAmountNumber(item.amount);
+      }, 0),
+    [larkForTotals],
+  );
+  const larkHoursTotal = useMemo(
+    () =>
+      larkForTotals.reduce((sum, item) => {
+        if (!isOvertimePayItemCode(item.payItemTypeCode)) return sum;
+        return sum + payItemAmountNumber(item.hours);
+      }, 0),
+    [larkForTotals],
   );
   const byType = useMemo(() => {
-    const map = new Map<string, { count: number; amount: number }>();
-    for (const item of allLark) {
+    const map = new Map<string, { count: number; amount: number; hours: number }>();
+    for (const item of larkForTotals) {
       const key = item.payItemTypeCode || '—';
-      const current = map.get(key) ?? { count: 0, amount: 0 };
+      const current = map.get(key) ?? { count: 0, amount: 0, hours: 0 };
       current.count += 1;
       current.amount += payItemAmountNumber(item.amount);
+      current.hours += payItemAmountNumber(item.hours);
       map.set(key, current);
     }
     return [...map.entries()].sort((a, b) => b[1].count - a[1].count);
-  }, [allLark]);
-
+  }, [larkForTotals]);
   return (
     <div className="space-y-4">
+      <div className={`${cardClass} border-[#4ade80]/25 p-4`}>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-[#eef0f6]">
+              {t('employees.overviewProvisionalTitle')}
+            </h2>
+            <p className={`mt-1 text-xs ${textSubtle}`}>
+              {t('employees.overviewProvisionalHint', { period: estimatePeriod })}
+            </p>
+          </div>
+          <FilterField label={t('common.period')} className="sm:max-w-[11rem]">
+            <PeriodSelect
+              value={estimatePeriod}
+              onChange={(value) => {
+                // Tren overview: luon chon 1 ky cu the de tinh tam.
+                if (value) onPeriodChange(value);
+              }}
+            />
+          </FilterField>
+        </div>
+        {provisional ? (
+          <>
+            <div className="mt-3 flex flex-wrap items-end gap-6">
+              <div>
+                <p className={`text-[11px] uppercase tracking-wide ${textSubtle}`}>
+                  {t('employees.overviewProvisionalGross')}
+                </p>
+                <p className="text-2xl font-semibold tabular-nums text-[#86efac]">
+                  {moneyText(provisional.gross)}
+                </p>
+              </div>
+              <div>
+                <p className={`text-[11px] uppercase tracking-wide ${textSubtle}`}>
+                  {t('employees.overviewProvisionalDays')}
+                </p>
+                <p className="text-sm tabular-nums text-[#eef0f6]">
+                  {formatHoursTotal(provisional.workedDays)} /{' '}
+                  {formatHoursTotal(provisional.standardDays)}
+                </p>
+              </div>
+              {provisional.overtimeHours > 0 ? (
+                <div>
+                  <p className={`text-[11px] uppercase tracking-wide ${textSubtle}`}>
+                    {t('employees.overviewLarkHours')}
+                  </p>
+                  <p className="text-sm tabular-nums text-[#eef0f6]">
+                    {formatHoursTotal(provisional.overtimeHours)}
+                  </p>
+                </div>
+              ) : null}
+            </div>
+            <div className="mt-3 space-y-1.5">
+              {provisional.lines.map((line) => (
+                <div
+                  key={`${line.code}-${line.labelKey}`}
+                  className="flex items-center justify-between gap-3 text-sm"
+                >
+                  <span className={textSubtle}>
+                    {t(`employees.provisionalLine.${line.labelKey}`, line.meta ?? {})}
+                  </span>
+                  <span className="tabular-nums text-[#eef0f6]">{moneyText(line.amount)}</span>
+                </div>
+              ))}
+            </div>
+            <p className={`mt-3 text-xs ${textSubtle}`}>
+              {provisional.assumptions.usedAttendanceDays
+                ? t('employees.overviewProvisionalFromAttendance')
+                : provisional.assumptions.usedElapsedDaysInMonth
+                  ? t('employees.overviewProvisionalFromElapsed', {
+                      days: provisional.workedDays,
+                    })
+                  : t('employees.overviewProvisionalFromCalendar')}{' '}
+              {t('employees.overviewProvisionalOtNote', {
+                hoursPerDay: provisional.workHoursPerDay,
+              })}
+            </p>
+          </>
+        ) : (
+          <p className={`mt-3 text-sm ${textSubtle}`}>{t('employees.overviewProvisionalNeedBase')}</p>
+        )}
+      </div>
+
       {canRecords ? (
         <div className={`${cardClass} border-[#4ade80]/25 p-4`}>
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -439,7 +608,7 @@ function EmployeeOverviewPanel({
             <p className="mt-3 text-sm text-[#f87171]">{getApiErrorMessage(larkItems.error)}</p>
           ) : larkItems.isLoading ? (
             <p className={`mt-3 text-sm ${textSubtle}`}>{t('common.loading')}</p>
-          ) : allLark.length === 0 ? (
+          ) : larkForTotals.length === 0 ? (
             <p className={`mt-3 text-sm ${textSubtle}`}>{t('employees.larkPayItems.empty')}</p>
           ) : (
             <div className="mt-3 space-y-3">
@@ -448,36 +617,60 @@ function EmployeeOverviewPanel({
                   <p className={`text-[11px] uppercase tracking-wide ${textSubtle}`}>
                     {t('employees.overviewLarkCount')}
                   </p>
-                  <p className="text-2xl font-semibold tabular-nums text-[#86efac]">{allLark.length}</p>
-                </div>
-                <div>
-                  <p className={`text-[11px] uppercase tracking-wide ${textSubtle}`}>
-                    {t('payItems.amount')}
-                  </p>
                   <p className="text-2xl font-semibold tabular-nums text-[#86efac]">
-                    {moneyText(larkTotal)}
+                    {larkForTotals.length}
                   </p>
                 </div>
+                {larkHoursTotal > 0 ? (
+                  <div>
+                    <p className={`text-[11px] uppercase tracking-wide ${textSubtle}`}>
+                      {t('employees.overviewLarkHours')}
+                    </p>
+                    <p className="text-2xl font-semibold tabular-nums text-[#86efac]">
+                      {formatHoursTotal(larkHoursTotal)}
+                    </p>
+                  </div>
+                ) : null}
+                {larkMoneyTotal > 0 || larkHoursTotal === 0 ? (
+                  <div>
+                    <p className={`text-[11px] uppercase tracking-wide ${textSubtle}`}>
+                      {t('payItems.amount')}
+                    </p>
+                    <p className="text-2xl font-semibold tabular-nums text-[#86efac]">
+                      {moneyText(larkMoneyTotal)}
+                    </p>
+                  </div>
+                ) : null}
                 <div className="min-w-0 flex-1">
                   <p className={`text-[11px] uppercase tracking-wide ${textSubtle}`}>
                     {t('common.period')}
                   </p>
                   <p className="truncate text-sm text-[#eef0f6]">
-                    {[...new Set(allLark.map((item) => item.period))].join(', ')}
+                    {[...new Set(larkForTotals.map((item) => item.period))].join(', ')}
                   </p>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
-                {byType.map(([type, stats]) => (
-                  <span
-                    key={type}
-                    className="rounded-md border border-[#2a3040] bg-[#12151c] px-2.5 py-1 text-xs text-[#eef0f6]"
-                    title={`${type} · ${moneyText(stats.amount)}`}
-                  >
-                    <span className="font-medium text-[#4ade80]">{typeLabel(type)}</span>
-                    <span className={textSubtle}> · {stats.count}</span>
-                  </span>
-                ))}
+                {byType.map(([type, stats]) => {
+                  const overtime = isOvertimePayItemCode(type);
+                  const detail = overtime
+                    ? formatHoursTotal(stats.hours)
+                    : moneyText(stats.amount);
+                  return (
+                    <span
+                      key={type}
+                      className="rounded-md border border-[#2a3040] bg-[#12151c] px-2.5 py-1 text-xs text-[#eef0f6]"
+                      title={`${type} · ${detail}`}
+                    >
+                      <span className="font-medium text-[#4ade80]">{typeLabel(type)}</span>
+                      <span className={textSubtle}>
+                        {' '}
+                        · {stats.count}
+                        {overtime && stats.hours > 0 ? ` · ${formatHoursTotal(stats.hours)}` : ''}
+                      </span>
+                    </span>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -615,6 +808,10 @@ function EmployeeProfileCard({ employee }: { employee: Employee }) {
   const [regionCode, setRegionCode] = useState(employee.regionCode ?? '');
   const [position, setPosition] = useState(employee.position ?? '');
   const [hiredAt, setHiredAt] = useState(toDateInput(employee.hiredAt));
+  const [baseSalary, setBaseSalary] = useState(employee.baseSalary ?? '');
+  const [probationSalary, setProbationSalary] = useState(employee.probationSalary ?? '');
+  const [confirmedSalary, setConfirmedSalary] = useState(employee.confirmedSalary ?? '');
+  const [raiseMax, setRaiseMax] = useState(employee.raiseMax ?? '');
   const [employmentStatus, setEmploymentStatus] = useState(employee.employmentStatus);
   const [payrollProcess, setPayrollProcess] = useState<string>(employee.payrollProcess ?? 'INTERNAL');
   const [payrollPolicyCode, setPayrollPolicyCode] = useState(
@@ -645,6 +842,10 @@ function EmployeeProfileCard({ employee }: { employee: Employee }) {
     setRegionCode(employee.regionCode ?? '');
     setPosition(employee.position ?? '');
     setHiredAt(toDateInput(employee.hiredAt));
+    setBaseSalary(employee.baseSalary ?? '');
+    setProbationSalary(employee.probationSalary ?? '');
+    setConfirmedSalary(employee.confirmedSalary ?? '');
+    setRaiseMax(employee.raiseMax ?? '');
     setEmploymentStatus(employee.employmentStatus);
     setPayrollProcess(employee.payrollProcess ?? 'INTERNAL');
     setPayrollPolicyCode(
@@ -693,6 +894,10 @@ function EmployeeProfileCard({ employee }: { employee: Employee }) {
       hiredAt: hiredIso,
       employmentStatus,
       payrollProcess,
+      baseSalary: baseSalary.trim() ? baseSalary.trim() : null,
+      probationSalary: probationSalary.trim() ? probationSalary.trim() : null,
+      confirmedSalary: confirmedSalary.trim() ? confirmedSalary.trim() : null,
+      raiseMax: raiseMax.trim() ? raiseMax.trim() : null,
       reason: reason.trim(),
     };
     const nextPolicy = payrollPolicyCode.trim() || null;
@@ -828,6 +1033,10 @@ function EmployeeProfileCard({ employee }: { employee: Employee }) {
           </div>
           <Field label={t('employees.hiredAt')} value={formatDay(employee.hiredAt)} />
           <Field label={t('employees.terminatedAt')} value={formatDay(employee.terminatedAt)} />
+          <Field label={t('employees.baseSalary')} value={moneyText(employee.baseSalary)} />
+          <Field label={t('employees.probationSalary')} value={moneyText(employee.probationSalary)} />
+          <Field label={t('employees.confirmedSalary')} value={moneyText(employee.confirmedSalary)} />
+          <Field label={t('employees.raiseMax')} value={moneyText(employee.raiseMax)} />
         </div>
       ) : null}
       {canUpdate ? (
@@ -872,6 +1081,45 @@ function EmployeeProfileCard({ employee }: { employee: Employee }) {
             <div className="space-y-1.5">
               <Label>{t('employees.hiredAt')}</Label>
               <Input type="date" value={hiredAt} onChange={(e) => setHiredAt(e.target.value)} />
+            </div>
+            <div className="space-y-1.5 sm:col-span-2">
+              <p className={`text-[10px] ${textSubtle}`}>{t('employees.salaryHint')}</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('employees.baseSalary')}</Label>
+              <Input
+                inputMode="decimal"
+                value={baseSalary}
+                placeholder="0"
+                onChange={(e) => setBaseSalary(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('employees.probationSalary')}</Label>
+              <Input
+                inputMode="decimal"
+                value={probationSalary}
+                placeholder="0"
+                onChange={(e) => setProbationSalary(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('employees.confirmedSalary')}</Label>
+              <Input
+                inputMode="decimal"
+                value={confirmedSalary}
+                placeholder="0"
+                onChange={(e) => setConfirmedSalary(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('employees.raiseMax')}</Label>
+              <Input
+                inputMode="decimal"
+                value={raiseMax}
+                placeholder="0"
+                onChange={(e) => setRaiseMax(e.target.value)}
+              />
             </div>
             <div className="space-y-1.5">
               <Label>{t('common.status')}</Label>
@@ -1523,9 +1771,11 @@ function EmployeeLarkPayItemsPanel({
     queryFn: () => fetchEmployeeLarkPayItems(employeeId),
   });
   const allItems = list.data?.items ?? [];
-  const filtered = period ? allItems.filter((item) => item.period === period) : allItems;
-  const hiddenByPeriod = period && filtered.length === 0 && allItems.length > 0;
-  const rows = hiddenByPeriod ? allItems : filtered;
+  /** An khoan REJECTED (thuong la dong Base luong trung da thu hoi) khoi bang chinh. */
+  const activeItems = allItems.filter((item) => (item.status || '').toUpperCase() !== 'REJECTED');
+  const filtered = period ? activeItems.filter((item) => item.period === period) : activeItems;
+  const hiddenByPeriod = period && filtered.length === 0 && activeItems.length > 0;
+  const rows = hiddenByPeriod ? activeItems : filtered;
   const columns: Column<PayItem>[] = [
     { key: 'period', header: t('common.period') },
     {
@@ -1691,6 +1941,10 @@ function isLarkPenaltyPayItem(item: PayItem) {
   return /PENALTY|FINE|PHAT/i.test(item.payItemTypeCode);
 }
 
+function isOvertimePayItemCode(code: string | null | undefined) {
+  return /^(OVERTIME|OVERTIME_HOUR|OVERTIME_DAY)$/i.test(code || '');
+}
+
 function payItemAmountNumber(amount: unknown): number {
   if (amount == null || amount === '') return 0;
   if (typeof amount === 'object' && amount && '$numberDecimal' in (amount as object)) {
@@ -1699,6 +1953,12 @@ function payItemAmountNumber(amount: unknown): number {
   }
   const n = Number(amount);
   return Number.isFinite(n) ? n : 0;
+}
+
+function formatHoursTotal(hours: number) {
+  if (!Number.isFinite(hours) || hours === 0) return '0';
+  const rounded = Math.round(hours * 100) / 100;
+  return Number.isInteger(rounded) ? String(rounded) : String(rounded);
 }
 
 function EmployeePenaltyPanel({

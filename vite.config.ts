@@ -21,7 +21,9 @@ export default defineConfig(({ mode }) => {
               target: proxyTarget,
               changeOrigin: true,
               secure: false,
-              timeout: 60_000,
+              // Dong bo Lark Base co the > 60s; khop timeout axios sync (180s).
+              timeout: 180_000,
+              proxyTimeout: 180_000,
             },
           }
         : undefined,

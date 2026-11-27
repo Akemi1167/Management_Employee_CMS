@@ -90,6 +90,10 @@ export function updateEmployee(
     payrollProcess?: string;
     payrollPolicyCode?: string | null;
     terminatedAt?: string | null;
+    baseSalary?: string | null;
+    probationSalary?: string | null;
+    confirmedSalary?: string | null;
+    raiseMax?: string | null;
     reason: string;
   },
 ) {

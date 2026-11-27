@@ -58,11 +58,12 @@ export function formatDate(value?: string | Date | null) {
   }).format(date);
 }
 
+/** Ngay lich (hiredAt/terminatedAt): luon hien theo UTC, khong theo timezone may. */
 export function formatDay(value?: string | Date | null) {
   if (!value) return '—';
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return String(value);
-  return new Intl.DateTimeFormat('vi-VN', { dateStyle: 'medium' }).format(date);
+  return new Intl.DateTimeFormat('vi-VN', { dateStyle: 'medium', timeZone: 'UTC' }).format(date);
 }
 
 export function toDateInput(value?: string | Date | null) {

@@ -85,11 +85,15 @@ interface SourceForm {
   departmentCodeField: string;
   regionCodeField: string;
   hiredAtField: string;
+  terminatedAtField: string;
   employmentStatusField: string;
   positionField: string;
   occurredOnField: string;
   hoursField: string;
   amountField: string;
+  probationSalaryField: string;
+  confirmedSalaryField: string;
+  raiseMaxField: string;
   currencyField: string;
   reasonField: string;
   approvalInstanceIdField: string;
@@ -116,11 +120,15 @@ function emptyForm(): SourceForm {
     departmentCodeField: '',
     regionCodeField: '',
     hiredAtField: '',
+    terminatedAtField: '',
     employmentStatusField: '',
     positionField: '',
     occurredOnField: '',
     hoursField: '',
     amountField: '',
+    probationSalaryField: '',
+    confirmedSalaryField: '',
+    raiseMaxField: '',
     currencyField: '',
     reasonField: '',
     approvalInstanceIdField: '',
@@ -149,11 +157,15 @@ function fromSource(source: LarkDataSource): SourceForm {
     departmentCodeField: source.fieldMap?.departmentCode ?? '',
     regionCodeField: source.fieldMap?.regionCode ?? '',
     hiredAtField: source.fieldMap?.hiredAt ?? '',
+    terminatedAtField: source.fieldMap?.terminatedAt ?? '',
     employmentStatusField: source.fieldMap?.employmentStatus ?? '',
     positionField: source.fieldMap?.position ?? '',
     occurredOnField: source.fieldMap?.occurredOn ?? '',
     hoursField: source.fieldMap?.hours ?? '',
     amountField: source.fieldMap?.amount ?? '',
+    probationSalaryField: source.fieldMap?.probationSalary ?? '',
+    confirmedSalaryField: source.fieldMap?.confirmedSalary ?? '',
+    raiseMaxField: source.fieldMap?.raiseMax ?? '',
     currencyField: source.fieldMap?.currency ?? '',
     reasonField: source.fieldMap?.reason ?? '',
     approvalInstanceIdField: source.fieldMap?.approvalInstanceId ?? '',
@@ -169,11 +181,15 @@ function toPayload(form: SourceForm) {
       departmentCode: form.departmentCodeField,
       regionCode: form.regionCodeField,
       hiredAt: form.hiredAtField,
+      terminatedAt: form.terminatedAtField,
       employmentStatus: form.employmentStatusField,
       position: form.positionField,
       occurredOn: form.occurredOnField,
       hours: form.hoursField,
       amount: form.amountField,
+      probationSalary: form.probationSalaryField,
+      confirmedSalary: form.confirmedSalaryField,
+      raiseMax: form.raiseMaxField,
       currency: form.currencyField,
       reason: form.reasonField,
       approvalInstanceId: form.approvalInstanceIdField,
@@ -219,11 +235,15 @@ function applySuggestedFieldMap(form: SourceForm, suggested?: Record<string, str
     departmentCodeField: pick(form.departmentCodeField, 'departmentCode'),
     regionCodeField: pick(form.regionCodeField, 'regionCode'),
     hiredAtField: pick(form.hiredAtField, 'hiredAt'),
+    terminatedAtField: pick(form.terminatedAtField, 'terminatedAt'),
     employmentStatusField: pick(form.employmentStatusField, 'employmentStatus'),
     positionField: pick(form.positionField, 'position'),
     occurredOnField: pick(form.occurredOnField, 'occurredOn'),
     hoursField: pick(form.hoursField, 'hours'),
     amountField: pick(form.amountField, 'amount'),
+    probationSalaryField: pick(form.probationSalaryField, 'probationSalary'),
+    confirmedSalaryField: pick(form.confirmedSalaryField, 'confirmedSalary'),
+    raiseMaxField: pick(form.raiseMaxField, 'raiseMax'),
     currencyField: pick(form.currencyField, 'currency'),
     reasonField: pick(form.reasonField, 'reason'),
     approvalInstanceIdField: pick(form.approvalInstanceIdField, 'approvalInstanceId'),
@@ -1035,34 +1055,95 @@ export function LarkDataSourcesPage() {
                       onChange={(value) => setForm({ ...form, employeeCodeField: value })}
                     />
                   </Field>
-                  <Field label={t('larkSources.fieldMap.amount')}>
+                  <Field
+                    label={
+                      form.defaultPayItemTypeCode.trim().toUpperCase() === 'BASE_SALARY'
+                        ? t('larkSources.fieldMap.baseSalary')
+                        : t('larkSources.fieldMap.amount')
+                    }
+                  >
                     <FieldMapInput
                       value={form.amountField}
                       names={fieldNames}
-                      required={!form.hoursField.trim()}
-                      placeholder={t('larkSources.amountPlaceholder')}
+                      required={
+                        form.defaultPayItemTypeCode.trim().toUpperCase() === 'BASE_SALARY' ||
+                        !form.hoursField.trim()
+                      }
+                      placeholder={
+                        form.defaultPayItemTypeCode.trim().toUpperCase() === 'BASE_SALARY'
+                          ? t('larkSources.baseSalaryPlaceholder')
+                          : t('larkSources.amountPlaceholder')
+                      }
                       onChange={(value) => setForm({ ...form, amountField: value })}
                     />
                   </Field>
-                  {(
-                    [
-                      ['hoursField', 'hours'],
-                      ['currencyField', 'currency'],
-                      ['occurredOnField', 'occurredOn'],
-                      ['reasonField', 'reason'],
-                      ['approvalStatusField', 'approvalStatus'],
-                      ['approvalInstanceIdField', 'approvalInstanceId'],
-                    ] as const
-                  ).map(([formKey, labelKey]) => (
-                    <Field key={formKey} label={t(`larkSources.fieldMap.${labelKey}`)}>
-                      <FieldMapInput
-                        value={form[formKey]}
-                        names={fieldNames}
-                        onChange={(value) => setForm({ ...form, [formKey]: value })}
-                      />
-                    </Field>
-                  ))}
+                  {form.defaultPayItemTypeCode.trim().toUpperCase() === 'BASE_SALARY' ? (
+                    <>
+                      <Field label={t('larkSources.fieldMap.probationSalary')}>
+                        <FieldMapInput
+                          value={form.probationSalaryField}
+                          names={fieldNames}
+                          placeholder={t('larkSources.probationSalaryPlaceholder')}
+                          onChange={(value) => setForm({ ...form, probationSalaryField: value })}
+                        />
+                      </Field>
+                      <Field label={t('larkSources.fieldMap.confirmedSalary')}>
+                        <FieldMapInput
+                          value={form.confirmedSalaryField}
+                          names={fieldNames}
+                          placeholder={t('larkSources.confirmedSalaryPlaceholder')}
+                          onChange={(value) => setForm({ ...form, confirmedSalaryField: value })}
+                        />
+                      </Field>
+                      <Field label={t('larkSources.fieldMap.raiseMax')}>
+                        <FieldMapInput
+                          value={form.raiseMaxField}
+                          names={fieldNames}
+                          placeholder={t('larkSources.raiseMaxPlaceholder')}
+                          onChange={(value) => setForm({ ...form, raiseMaxField: value })}
+                        />
+                      </Field>
+                    </>
+                  ) : (
+                    (
+                      [
+                        ['hoursField', 'hours'],
+                        ['currencyField', 'currency'],
+                        ['occurredOnField', 'occurredOn'],
+                        ['reasonField', 'reason'],
+                        ['approvalStatusField', 'approvalStatus'],
+                        ['approvalInstanceIdField', 'approvalInstanceId'],
+                      ] as const
+                    ).map(([formKey, labelKey]) => {
+                      const overtime =
+                        /^(OVERTIME|OVERTIME_HOUR|OVERTIME_DAY)$/.test(
+                          form.defaultPayItemTypeCode.trim().toUpperCase(),
+                        );
+                      const label =
+                        overtime && labelKey === 'occurredOn'
+                          ? t('larkSources.fieldMap.overtimeStartedAt')
+                          : overtime && labelKey === 'hours'
+                            ? t('larkSources.fieldMap.overtimeHours')
+                            : t(`larkSources.fieldMap.${labelKey}`);
+                      return (
+                        <Field key={formKey} label={label}>
+                          <FieldMapInput
+                            value={form[formKey]}
+                            names={fieldNames}
+                            onChange={(value) => setForm({ ...form, [formKey]: value })}
+                          />
+                        </Field>
+                      );
+                    })
+                  )}
                 </div>
+                {form.defaultPayItemTypeCode.trim().toUpperCase() === 'BASE_SALARY' ? (
+                  <p className={cn('text-xs', textSubtle)}>{t('larkSources.baseSalaryMapHint')}</p>
+                ) : /^(OVERTIME|OVERTIME_HOUR|OVERTIME_DAY)$/.test(
+                    form.defaultPayItemTypeCode.trim().toUpperCase(),
+                  ) ? (
+                  <p className={cn('text-xs', textSubtle)}>{t('larkSources.overtimeMapHint')}</p>
+                ) : null}
               </div>
             ) : form.purpose === 'EMPLOYEE' ? (
               <div className="space-y-3 rounded-lg border border-[#2a3040] bg-[#1a1e28]/50 p-3">
@@ -1086,6 +1167,7 @@ export function LarkDataSourcesPage() {
                       ['departmentCodeField', 'departmentCode'],
                       ['regionCodeField', 'regionCode'],
                       ['hiredAtField', 'hiredAt'],
+                      ['terminatedAtField', 'terminatedAt'],
                       ['employmentStatusField', 'employmentStatus'],
                       ['positionField', 'position'],
                     ] as const
@@ -1099,6 +1181,7 @@ export function LarkDataSourcesPage() {
                     </Field>
                   ))}
                 </div>
+                <p className={cn('text-xs', textSubtle)}>{t('larkSources.terminatedAtMapHint')}</p>
                 <label className="flex items-start gap-3 text-sm">
                   <Switch
                     className="mt-0.5"
